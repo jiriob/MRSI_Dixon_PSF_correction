@@ -95,7 +95,7 @@ end
 
 %% DEFINITIONS
 
-ROW = voxel.number_x % x
+ROW = voxel.number_x; % x
 COL = voxel.number_y; % y
 SLC = voxel.number_z; % z
 
@@ -247,10 +247,12 @@ for z = bbox.slc_start:bbox.slc_end
             %ims = abs(std(snr.min(:)));
             %SNR.main = (ima) / (ims);
             
-            if diff_ > 1000
+            if diff_ > 10000
                 SNR.main = 1;
             end
-            
+            if SNR.main < 2
+                SNR.main = 1;
+            end
             SNR.main;
             SNR.mid = SNR.mid + SNR.main;
             SNR.tab(b,a,c) = SNR.main;
@@ -270,10 +272,26 @@ for z = bbox.slc_start:bbox.slc_end
     end
 end
 
-% treshold for all values:
-for ii = 1:numel(SNR.reshaped)
-    if SNR.reshaped(ii) < 0.2 * max(SNR.reshaped) % 20%
-        SNR.reshaped(ii) = 1;
+%% treshold for all values:
+%for ii = 1:numel(SNR.reshaped)
+%    if SNR.reshaped(ii) < 0.1 * max(SNR.reshaped) % 10%
+%        SNR.reshaped(ii) = 1;
+%    end
+%end
+%reshape and add coordinates as are in siemens:
+c.pix_width = voxel.step_y * 2; % number of voxels in the pressbox - x axis
+c.pix_height = voxel.step_x * 2; % -||- - y axis
+c.pix_depth = voxel.step_z * 2; % -||- - z axis
+ooo = 0;
+for k = 1:c.pix_depth
+    for j = 1:c.pix_width
+        for i = 1:c.pix_height
+            ooo = ooo + 1;
+            SNR.w_coor(ooo,1) = i + (voxel.number_x / 2 - voxel.step_x);
+            SNR.w_coor(ooo,2) = j + (voxel.number_y / 2 - voxel.step_y);
+            SNR.w_coor(ooo,3) = k + (voxel.number_z / 2 - voxel.step_z);
+            SNR.w_coor(ooo,4) = SNR.reshaped(1,ooo);
+        end
     end
 end
 
@@ -297,5 +315,7 @@ fclose(fid_write);
     fclose(fid_write);
     disp(pvc_max);
 
+dlmwrite('Output_choSNR_w_coor.txt', SNR.w_coor, 'delimiter', '\t', ...
+         'precision', 6);
  
 toc

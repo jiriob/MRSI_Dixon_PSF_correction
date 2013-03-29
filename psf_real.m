@@ -589,16 +589,15 @@ end
 for k = 1:voxel.step_z * 2
     for j = 1:voxel.step_y * 2
         for i = 1:voxel.step_x * 2
-            if mtrx2(j,i,k) == 1 || mtrx2(j,i,k) < max(mtrx1{1,1}) * 0.1
+            if mtrx2(j,i,k) == 1 || mtrx2(j,i,k) < max(mtrx1{1,1}) * 0.1 % filter small SNR
                 density_wt_cor(j,i,k) = 0;
                 density(j,i,k) = 0;
-            elseif rtio(j,i,k) < 0.1 % associate the choline and density in each and compute the choline/density ratio:
-                    % if there is a bad SNR and the ratio is visibly small change it to 0.1
+            elseif rtio(j,i,k) < 0.1 % if there is a good enough SNR but the ratio is visibly small, don't count it
                     disp('!!! There in enough SNR in a suspiciosly fatty voxel !!!');
                     disp(strcat('ijk= ',num2str(i),',',num2str(j),',',num2str(k)));
-                    density_wt_cor(j,i,k) = mtrx2(j,i,k);
-                    density(j,i,k) =  mtrx2(j,i,k) / rtio(j,i,k);
-            else                
+                    density_wt_cor(j,i,k) = 0; %mtrx2(j,i,k);
+                    density(j,i,k) =  0; %mtrx2(j,i,k) / rtio(j,i,k);
+            else % associate the choline and density in each and compute the choline/density ratio:            
                     %density(j,i,k) = rtio(j,i,k);
                     density_wt_cor(j,i,k) = mtrx2(j,i,k);
                     density(j,i,k) = mtrx2(j,i,k) / rtio(j,i,k);
@@ -616,7 +615,6 @@ save(strcat(nfo1.PatientName.FamilyName,'_rtio'),'rtio');
 
 
 %% save the correlated data
-
 ooo = 0;
 for k = 1:c.pix_depth
     for j = 1:c.pix_width
