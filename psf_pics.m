@@ -119,18 +119,18 @@ jet2 = interp2(X,Y,jet1,XI,YI);
 
 %% draw 8 slices at once:
 figure('units','normalized','position',[.05 .1 .9 .9])
-for aa = 1:c.pix_depth + 1
+for aa = 2:c.pix_depth + 1
     %subplot('Position',[(-0.0 ) 0.05 (2.5 / c.pix_depth) (2.5 / c.pix_depth)]);
-    subaxis(round(c.pix_depth / 3),4 ,aa, 'Spacing', 0, 'Padding', 0, 'Margin', 0);
+    subaxis(round(c.pix_depth / 3 - 1),4 ,aa - 1, 'Spacing', 0, 'Padding', 0, 'Margin', 0);
     subimage(imgs_w(:,:,fix((aa - 1) * (c.cut_depth * fctr) / (c.pix_depth + 1)) + 1),cmp1);
-    pic = signal3D_(:,:,fix((aa - 1) * (c.cut_depth * fctr) / (c.pix_depth + 1)) + 1);
+    pic = signal3D_(:,:,fix((aa - 1) * (c.cut_depth * fctr) / (c.pix_depth + 1)) - 4 );
     hold on
     if g_test < 10
-        hh2 = image((voxel.fov_x1 - 2) * fctr,(voxel.fov_y1 - 1) * fctr,pic .* 100,...
+        hh2 = image((voxel.fov_x1 - 3) * fctr,(voxel.fov_y1 - 3) * fctr,pic .* 100,...
             'AlphaData',0.5,...
             'CDataMapping','scaled');
     else
-        hh2 = image((voxel.fov_x1 - 2) * fctr,(voxel.fov_y1 - 1) * fctr,pic,...
+        hh2 = image((voxel.fov_x1 - 3) * fctr,(voxel.fov_y1 - 3) * fctr,pic,...
             'AlphaData',0.35,...
             'CDataMapping','scaled');
     end
