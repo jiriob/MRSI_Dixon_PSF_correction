@@ -1,5 +1,5 @@
 
-function [rtio] = psf(directory, field, w_nois, f_nois, s_nois, jmr, shft_ud, shft_lr)
+function [rtio] = psf(directory, field, w_nois, f_nois, s_nois, jmr, shft_ud, shft_lr,SNR_filter)
 % minarikova.lenka@gmail.com
 
 % !!!!!!!!!!!!!!!!!! readme !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -17,6 +17,8 @@ function [rtio] = psf(directory, field, w_nois, f_nois, s_nois, jmr, shft_ud, sh
 % jmr = 1 if the data are from jmrui (usualy for phantom measurements)
 % shft_ud: for shifted CSI: up -0.% down +0.%
 % shft_lr: for shifted CSI: left -0.% right +0.%
+% SNR_filter: change this value to 0.1 if you want 10% of SNR to be filter (for 
+%    phantoms) and to 0.2 (for in vivo data)
 
 % the output is maximal, mean value of all SNRs of Cho and a table 
 %   with all SNRs in one row, all saved in txt files in Spec directory
@@ -589,7 +591,7 @@ end
 for k = 1:voxel.step_z * 2
     for j = 1:voxel.step_y * 2
         for i = 1:voxel.step_x * 2
-            if mtrx2(j,i,k) == 1 || mtrx2(j,i,k) < max(mtrx1{1,1}) * 0.1 % filter small SNR
+            if mtrx2(j,i,k) == 1 || mtrx2(j,i,k) < max(mtrx1{1,1}) * SNR_filter % filter small SNR
                 density_wt_cor(j,i,k) = 0;
                 density(j,i,k) = 0;
             elseif rtio(j,i,k) < 0.1 % if there is a good enough SNR but the ratio is visibly small, don't count it
@@ -620,12 +622,32 @@ for k = 1:c.pix_depth
     for j = 1:c.pix_width
         for i = 1:c.pix_height
             ooo = ooo + 1;
-            signal3D.list(ooo,1) = i + (voxel.number_x / 2 - voxel.step_x);
-            signal3D.list(ooo,2) = j + (voxel.number_y / 2 - voxel.step_y);
+%            if abs(voxel.fov_cntr_x + round(shft_lr * voxel.FoV_x / voxel.notinterpfov_x) - ...
+%        voxel.step_x * voxel.size_x) > abs(voxel.fov_cntr_x - voxel.p_fov_x / 2)
+%                signal3D.list(ooo,1) = i + (voxel.number_x / 2 - voxel.step_x) + 1;
+%                signal3D.wt_cor(ooo,1) = i + (voxel.number_x / 2 - voxel.step_x) + 1;
+%            elseif abs(voxel.fov_cntr_x + round(shft_lr * voxel.FoV_x / voxel.notinterpfov_x) - ...
+%        voxel.step_x * voxel.size_x) < abs(voxel.fov_cntr_x + voxel.p_fov_x / 2)
+%                signal3D.list(ooo,1) = i + (voxel.number_x / 2 - voxel.step_x) - 1;
+%                signal3D.wt_cor(ooo,1) = i + (voxel.number_x / 2 - voxel.step_x) - 1;
+%            else
+                signal3D.list(ooo,1) = i + (voxel.number_x / 2 - voxel.step_x);
+                signal3D.wt_cor(ooo,1) = i + (voxel.number_x / 2 - voxel.step_x);
+%            end
+%            if abs(voxel.fov_cntr_y + round(shft_ud * voxel.FoV_y / voxel.notinterpfov_y) - ...
+%        voxel.step_y * voxel.size_y) > abs(voxel.fov_cntr_y - voxel.p_fov_y / 2)
+%                signal3D.list(ooo,2) = j + (voxel.number_y / 2 - voxel.step_y) + 1;
+%                signal3D.wt_cor(ooo,2) = j + (voxel.number_y / 2 - voxel.step_y) + 1;
+%            elseif abs(voxel.fov_cntr_y + round(shft_ud * voxel.FoV_y / voxel.notinterpfov_y) - ...
+%        voxel.step_y * voxel.size_y) < abs(voxel.fov_cntr_y + voxel.p_fov_y / 2)
+%                Ssignal3D.list(ooo,2) = j + (voxel.number_y / 2 - voxel.step_y) - 1;
+%                signal3D.wt_cor(ooo,2) = j + (voxel.number_y / 2 - voxel.step_y) - 1;
+%            else
+                signal3D.list(ooo,2) = j + (voxel.number_y / 2 - voxel.step_y);
+                signal3D.wt_cor(ooo,2) = j + (voxel.number_y / 2 - voxel.step_y);
+%            end
             signal3D.list(ooo,3) = voxel.number_z / 2 + voxel.step_z - k + 1;
             signal3D.list(ooo,4) = density(j,i,k);
-            signal3D.wt_cor(ooo,1) = i + (voxel.number_x / 2 - voxel.step_x);
-            signal3D.wt_cor(ooo,2) = j + (voxel.number_y / 2 - voxel.step_y);
             signal3D.wt_cor(ooo,3) = voxel.number_z / 2 + voxel.step_z - k + 1;
             signal3D.wt_cor(ooo,4) = density_wt_cor(j,i,k);
         end

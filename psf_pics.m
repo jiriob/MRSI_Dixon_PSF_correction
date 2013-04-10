@@ -122,8 +122,8 @@ figure('units','normalized','position',[.05 .1 .9 .9])
 for aa = 2:c.pix_depth + 1
     %subplot('Position',[(-0.0 ) 0.05 (2.5 / c.pix_depth) (2.5 / c.pix_depth)]);
     subaxis(round(c.pix_depth / 3 - 1),4 ,aa - 1, 'Spacing', 0, 'Padding', 0, 'Margin', 0);
-    subimage(imgs_w(:,:,fix((aa - 1) * (c.cut_depth * fctr) / (c.pix_depth + 1)) + 1),cmp1);
-    pic = signal3D_(:,:,fix((aa - 1) * (c.cut_depth * fctr) / (c.pix_depth + 1)) - 4 );
+    subimage(imgs_w(:,:,fix((aa - 1) * (c.cut_depth * fctr) / (c.pix_depth + 1)) + 5),cmp1);
+    pic = signal3D_(:,:,fix((aa - 1) * (c.cut_depth * fctr) / (c.pix_depth + 1)) - 0);
     hold on
     if g_test < 10
         hh2 = image((voxel.fov_x1 - 3) * fctr,(voxel.fov_y1 - 3) * fctr,pic .* 100,...
