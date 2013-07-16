@@ -1,5 +1,5 @@
 
-function [] = psf(directory, field, jmr, shft_ud, shft_lr, SNR_filter)
+function [rtio] = psf(directory, field, klst_n, w_nois, f_nois, s_nois, jmr, shft_ud, shft_lr,SNR_filter)
 % minarikova.lenka@gmail.com
 
 % !!!!!!!!!!!!!!!!!! readme !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -10,6 +10,10 @@ function [] = psf(directory, field, jmr, shft_ud, shft_lr, SNR_filter)
 % directory = '~/Patient_name' - where is a directory called "Spec" with 
 %   a dicom 3D CSI file
 % field = 3 - e
+% w_nois water pixel intensity noise threshold
+% f_nois = fat noise threshold (ex. I know fat intensity is only above 50)
+% s_nois: set to 1 if you want saved noise information to be loaded 
+%   instead of again computing new data sets 0
 % jmr = 1 if the data are from jmrui (usualy for phantom measurements)
 % shft_ud: for shifted CSI: up -0.% down +0.%
 % shft_lr: for shifted CSI: left -0.% right +0.%
@@ -25,9 +29,27 @@ function [] = psf(directory, field, jmr, shft_ud, shft_lr, SNR_filter)
 % !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 % search for variables in spectroscopy file:
-
 tic;
-
+%directory_main = ('/Volumes/Home/zgung/Desktop/cholin/Kuktics/');
+%cd(directory_main);
+% List all data folders
+%subs = dir(pwd);
+% Remove non-folders, . and .. items from data folder list
+%for k = length(subs):-1:1
+    % extract subjects names
+%    if ~subs(k).isdir
+%        subs(k) = [];
+%        continue
+%    end
+%    fname = subs(k).name;
+%    if fname(1) == '.'
+%        subs(k) = [];
+%    end
+%end
+%%%
+%subjects = subs;
+%nextSub = 1;% <<<<<<<<< Here you can choose the data folder 
+%directory = strcat(directory_main,subjects(nextSub).name,'/');
 directory_main = directory;
 directory_spec = strcat(directory,'Spec/');
 cd(directory_spec);
@@ -78,7 +100,7 @@ for k = length(slices):-1:1
         slices(k) = [];
     end
 end
-% determine CSI-in-press parameters:
+%% determine CSI-in-press parameters:
 voxel.size_z = voxel.FoV_z / voxel.number_z; % the size of 1 voxel after zero filling in mm
 voxel.size_y = voxel.FoV_y / voxel.number_y;
 voxel.size_x = voxel.FoV_x / voxel.number_x;
@@ -96,34 +118,23 @@ else
     voxel.step_y = voxel.number_y / 2 - fix((voxel.FoV_y - voxel.p_fov_y) / 2 / voxel.size_y);
     voxel.step_z = voxel.number_z / 2 - fix((voxel.FoV_z - voxel.p_fov_z) / 2 / voxel.size_z);
 end
+
 nfo1 = dicominfo(slices(1).name);
-% %%%%%%%%%%%%%%%%%%%%%%% Import the W images %%%%%%%%%%%%%%%%%%%%%%%%%
+%% Import the images, center them and regrid
+% make the center of coordinates the centre of image: horizontaly
 n = numel(slices);
 imgs = cell(1,1);
 for ii = 1:n
     imgs{1,1}(:,:,ii) = double(dicomread(slices(ii).name));
-end   
-%% %%%%% move to dixom folder: fat, import fat images %%%%%%
-cd(strcat(directory,'Dixon_1.0iso_PAT2_v2_F/'));
-slices = dir(pwd);
-for k = length(slices):-1:1
-    fname = slices(k).name;
-    if fname(1) == '.'
-        slices(k) = [];
-    end
 end
-n = numel(slices);
-for ii = 1:n
-    imgs{1,2}(:,:,ii) = double(dicomread(slices(ii).name));
-end
-
-%% interpolate so 1 mm ~ 1 image voxel
+% interpolate so 1 mm ~ 1 image voxel
     [XI,YI,ZI] = meshgrid(1:(floor(10000 * 1 / nfo1.PixelSpacing(1,1)) / 10000):length(imgs{1,1}(1,:,1)),...
         1:(floor(10000 * 1 / nfo1.PixelSpacing(2,1)) / 10000):length(imgs{1,1}(:,1,1)),...
         1:(floor(10000 * 1 / nfo1.SliceThickness) / 10000):length(imgs{1,1}(1,1,:)));
-    imgs{2,1} = ba_interp3(imgs{1,1},XI,YI,ZI,'nearest'); % fast interpolation to 1x1x1 mm3 
+    imgs{2,1} = ba_interp3(imgs{1,1},XI,YI,ZI,'nearest'); % fast interpolation to 1x1x1 mm3
     [YI,XI,~] = size(imgs{2,1});
-% make the center of coordinates the centre of each axial slice: horizontaly
+
+%% make the center of coordinates the centre of each axial slice: horizontaly
 if -nfo1.ImagePositionPatient(1,1) > XI -  ...
         -nfo1.ImagePositionPatient(1,1) == 1
         % add zeros to the end
@@ -148,7 +159,7 @@ else
             imgs{2,1}(1:YI,:,:);
         imgs{2,1}(1:YI - -round(2 * nfo1.ImagePositionPatient(2,1)),:,:) = 0;
 end
-% other csi parameters:
+%% other csi parameters:
 % determine the first slice and last slices = determine the press box transversal beginning:
 voxel.FoV_z_1 = round(voxel.fov_cntr_z + voxel.p_fov_z / 2); % the real position in number of pixels in the image
 voxel.FoV_z_2 = round(voxel.fov_cntr_z - voxel.p_fov_z / 2);
@@ -158,7 +169,7 @@ imgs{3,1} = imgs{2,1}(:,:,voxel.csi_slice_1:voxel.csi_slice_last); % remove the 
 
 % look if the csi is rotated about an angle:
 voxel.angle_deg = radtodeg(voxel.angle);
-%
+%%
 % the center point of csi in press box in rotated images has coordinates from the
 % left upper corner:
 if voxel.angle > 0.0 % clockwise
@@ -175,15 +186,36 @@ voxel.fov_cntr_x_rttd = numel(imgs{3,1}(1,:,1)) / 2 - (-voxel.fov_cntr_x) * cos(
      (-voxel.fov_cntr_y) * sin(-voxel.angle) + 0;
 voxel.fov_cntr_y_rttd = numel(imgs{3,1}(:,1,1)) / 2 - (-voxel.fov_cntr_y) * cos(-voxel.angle) + ...
      (-voxel.fov_cntr_x) * sin(-voxel.angle) + 0;
+
 % and width and hight:
 voxel.fov_x1 = floor(voxel.fov_cntr_x_rttd - voxel.p_fov_x / 2);
 voxel.fov_y1 = floor(voxel.fov_cntr_y_rttd - voxel.p_fov_y / 2);
-
-%% tttttttttttttt process fat images tttttttttttttttttttttttttttttttttttttt
-% interpolate
-[XI,YI,ZI] = meshgrid(1:(floor(10000 * 1 / nfo1.PixelSpacing(1,1)) / 10000):length(imgs{1,1}(1,:,1)),...
-    1:(floor(10000 * 1 / nfo1.PixelSpacing(2,1)) / 10000):length(imgs{1,1}(:,1,1)),...
-    1:(floor(10000 * 1 / nfo1.SliceThickness) / 10000):length(imgs{1,1}(1,1,:)));
+% read image and turn it, cut it
+for ii = 1:numel(imgs{3,1}(1,1,:))
+   imgs{4,1}(:,:,ii) = imcrop(imrotate(imgs{3,1}(:,:,ii),-voxel.angle_deg,...
+       'nearest','crop'),[voxel.fov_x1 voxel.fov_y1 (voxel.p_fov_x - 1) (voxel.p_fov_y - 1)]);
+% rotate default pictures:
+   imgs{3,1}(:,:,ii) = imrotate(imgs{3,1}(:,:,ii),-voxel.angle_deg,...
+       'nearest','crop');
+end
+%% tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt
+%%%%%%% move to dixom folder: fat
+cd(strcat(directory,'Dixon_1.0iso_PAT2_v2_F/'));
+slices = dir(pwd);
+for k = length(slices):-1:1
+    fname = slices(k).name;
+    if fname(1) == '.'
+        slices(k) = [];
+    end
+end
+% make the center of coordinates the centre of image: horizontaly
+n = numel(slices);
+for ii = 1:n
+    imgs{1,2}(:,:,ii) = double(dicomread(slices(ii).name));
+end
+[XI,YI,ZI] = meshgrid(1:1 / nfo1.PixelSpacing(1,1):length(imgs{1,2}(1,:,1)),...
+    1:1 / nfo1.PixelSpacing(2,1):length(imgs{1,2}(:,1,1)),...
+    1:1 / nfo1.SliceThickness:length(imgs{1,2}(1,1,:)));
 imgs{2,2} = ba_interp3(imgs{1,2},XI,YI,ZI,'nearest'); % fast interpolation to 1x1x1 mm3
 [YI,XI,~] = size(imgs{2,2});
 % make the center of coordinates the centre of image: horizontaly
@@ -212,15 +244,6 @@ else
         imgs{2,2}(1:YI - -round(2 * nfo1.ImagePositionPatient(2,1)),:,:) = 0;
 end
 imgs{3,2} = imgs{2,2}(:,:,voxel.csi_slice_1:voxel.csi_slice_last); % remove the additional slices
-
-% read image and turn it, cut it
-for ii = 1:numel(imgs{3,1}(1,1,:))
-   imgs{4,1}(:,:,ii) = imcrop(imrotate(imgs{3,1}(:,:,ii),-voxel.angle_deg,...
-       'nearest','crop'),[voxel.fov_x1 voxel.fov_y1 (voxel.p_fov_x - 1) (voxel.p_fov_y - 1)]);
-% rotate default pictures:
-   imgs{3,1}(:,:,ii) = imrotate(imgs{3,1}(:,:,ii),-voxel.angle_deg,...
-       'nearest','crop');
-end
 % read image and turn it, cut it
 for ii = 1:numel(imgs{3,2}(1,1,:))
    imgs{4,2}(:,:,ii) = imcrop(imrotate(imgs{3,2}(:,:,ii),-voxel.angle_deg,...
@@ -230,122 +253,133 @@ for ii = 1:numel(imgs{3,2}(1,1,:))
        'nearest','crop');
 end
 
+
+
 %% %%%%%%%%%%%%%%%%%%%%%%% SEGMENTATION %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 cd(strcat(directory,'Spec/'));
 ova(1,1) = numel(imgs{4,1}(:,1,1)); % x
 ova(2,1) = numel(imgs{4,1}(1,:,1)); % y
 ova(3,1) = numel(imgs{4,1}(1,1,:)); % z
-
-threed(:,1) = double(reshape(imgs{4,1},[],1));
-threed(:,2) = double(reshape(imgs{4,2},[],1));
-for i = 1:ova(3,1) %do I need this???
-    threed(((i-1) * ova(1,1) * ova(2,1)) + 1: i * ova(1,1) * ova(2,1),3) = i;
+% check if you already removed the noise
+disp('Noise reduction');
+if s_nois == 1
+    if exist(strcat(nfo1.PatientName.FamilyName,'_threed.mat'),'file') ~= 2
+        disp(strcat('You did not save anything...'));
+        threed(:,1) = double(reshape(imgs{4,1},[],1));
+        threed(:,2) = double(reshape(imgs{4,2},[],1));
+        for i = 1:ova(3,1)
+            threed(((i-1) * ova(1,1) * ova(2,1)) + 1: i * ova(1,1) * ova(2,1),3) = i;
+        end
+        % #second 3D data set to have a backup without removed pixels
+        threed_ = threed;
+        for k = length(threed):-1:1 % remove the noise
+            if threed(k,1) + threed(k,2) < w_nois + f_nois
+                if threed(k,1) < w_nois * max(threed(:,1)) && threed(k,2) < f_nois * max(threed(:,2))
+                    threed(k,:) = [];
+                    k = k - 1;
+                end
+            end
+        end
+        save(strcat(nfo1.PatientName.FamilyName,'_threed.mat'),'threed');
+    else % just load what you have saved before with removed noise
+        threed_(:,1) = double(reshape(imgs{4,1},[],1));
+        threed_(:,2) = double(reshape(imgs{4,2},[],1));
+        for i = 1:ova(3,1)
+            threed_(((i-1) * ova(1,1) * ova(2,1)) + 1: i * ova(1,1) * ova(2,1),3) = i;
+        end
+            load(strcat(nfo1.PatientName.FamilyName,'_threed.mat'));
+    end
+else
+    threed(:,1) = double(reshape(imgs{4,1},[],1));
+    threed(:,2) = double(reshape(imgs{4,2},[],1));
+    for i = 1:ova(3,1)
+        threed(((i-1) * ova(1,1) * ova(2,1)) + 1: i * ova(1,1) * ova(2,1),3) = i;
+    end
+    % #second 3D data set to have a backup without removed pixels
+    threed_ = threed;
+    for k = length(threed):-1:1 % remove the noise
+        if threed(k,1) + threed(k,2) < w_nois + f_nois
+            if threed(k,1) < w_nois * max(threed(:,1)) && threed(k,2) < f_nois * max(threed(:,2))
+                threed(k,:) = [];
+                k = k - 1;
+            end
+        end
+    end
+    save(strcat(nfo1.PatientName.FamilyName,'_threed.mat'),'threed');
 end
+
 disp('Segmenting...');
 %% segmentation alone
 data = threed(:,1:2);
-% how to distinquish water cluster from noise and fat using 2d histogram
-[hist,biny] = hist3(data,[128,128]);
-biny_a(:,1) = biny{1,1};
-biny_a(:,2) = biny{1,2};
-clear biny;
-iii = 100;
-figure(1); %plot histogram
-hist3(data,[64,64]);
-xlabel('MPG'); ylabel('Weight');
-set(gcf,'renderer','opengl');
-set(get(gca,'child'),'FaceColor','interp','CDataMode',...
-'auto');
-caxis([0 200]);
-%subplot(221);
-%imagesc(hist);
-%caxis([0 100]);
-% filter noise in the histogram
-noiseFilter = imhmin(hist,2);
-%# Gaussian-filter the image:
-gaussFilter = fspecial('gaussian',[64 64],5);  %# Create the filter
-filteredData = imfilter(noiseFilter,gaussFilter);
-%subplot(222);
-%imagesc(filteredData);
-%title('Gaussian-filtered image');
-%caxis([0 100]);
-% # Perform a morphological close operation:
-closeElement = strel('disk',4);  %# Create a disk-shaped structuring element
-closedData = imclose(filteredData,closeElement);
-%subplot(223);
-%imagesc(closedData);
-%title('Closed image');
-%caxis([0 100]);
-% find centers
-mxma = imregionalmax(closedData);
-%subplot(224);
-%imagesc(mxma);
-[X,Y] = find(mxma==max(mxma(:))); 
-% assign bins to the max points
-[w.X,w.ind] = max(X);
-w.Y = Y(w.ind);
-[f.Y,f.ind] = max(Y);
-f.X = X(f.ind);
-% find the "minimum" between the two maxima (or even three)
-syms a k
-[sol_a, sol_k] = solve(k * w.X + a == w.Y, k * f.X + a == f.Y);
-yy = ones(size((f.X + 1):(w.X - 1)));
-dif = yy;
-i = 0;
-if closedData(f.X,f.Y) > closedData(w.X,w.Y)
-    for ii = (f.X + 1):(w.X - 1) % pouzi indexy radsej
-        i = i + 1;
-        yy(i) = round(double(sol_k) * ii + double(sol_a));
-        % a teraz pekne sprav rozdiely
-        dif(i) = closedData(f.X,f.Y) - closedData(ii,yy(i));
+opts = statset('Display','final'); 
+[threed(:,4),cntrds] = kmeans(data,klst_n,...
+                    'Distance','sqEuclidean',...
+                    'Replicates',10,...
+                    'Options',opts);
+figure(1);
+gscatter(threed(:,1),threed(:,2),threed(:,4)), axis tight
+% define which cluster is water and fat
+for kk = 1:klst_n % for klst_n is number of clusters
+    if cntrds(kk,1) == max(cntrds(:,1)) % is water
+        w_ind1 = kk;
+    elseif cntrds(kk,2) == max(cntrds(:,2)) % is fat
+        %ii = ii + 1;
+        f_ind = kk;
+    elseif cntrds(kk,1) ~= max(cntrds(:,1)) && cntrds(kk,1) ~= min(cntrds(:,1)) && cntrds(kk,2) ~= max(cntrds(:,2)) && cntrds(kk,2) ~= min(cntrds(:,2))
+        w_ind2 = kk;
+    end
+end
+%% make maps with (real) 1 and 0 values
+j=1;
+if klst_n == 4
+    for k = 1:numel(threed_(:,1))
+        if threed_(k,1) == threed(j,1) && threed_(k,2) == threed(j,2)
+            if threed(j,4) == w_ind1 || threed(j,4) == w_ind2
+                threed_(k,4) = threed_(k,1);
+                threed_(k,5) = 0;
+            elseif threed(j,4) == f_ind(1)
+                threed_(k,4) = 0;
+                threed_(k,5) = threed_(k,2); % this is what I changed
+            else % this is when there is more than 2 clusters and/or removed noise
+                threed_(k,4) = 0;
+                threed_(k,5) = 0;
+            end
+            j = j + 1;
+            if j > length(threed)
+                break
+            end
+        else
+            threed_(k,4) = 0;
+            threed_(k,5) = 0;
+        end  
     end
 else
-    disp('Water peak is higher than fat?')
-end
-ii = (f.X + 1):(w.X - 1);
-[~,coor_min.abs] = max(dif);
-coor_min.X = ii(coor_min.abs);
-coor_min.Y = yy(coor_min.abs);
-% bins for the water center and for "minimum"
-%f.wii = biny_a(f.X,1); % water images intensities
-%f.fii = biny_a(f.Y,2); % fat image intensities
-w.wii = biny_a(w.X,1);
-w.fii = biny_a(w.Y,2);
-coor_min.wii = biny_a(coor_min.X,1);
-coor_min.fii = biny_a(coor_min.Y,2);
-% solve a equation: a circle with the center in water maximum and radius of the "minimum"
-% (x - w.wii)^2 + (y - w.fii)^2 = sqrt((coor_min.wii - w.wii)^2 + (coor_min.fii - w.fii)^2))
-%% second equation: y = x (where x is the "minimum")
-for i = 1:length(threed)
-    if threed(i,1) < w.wii % for voxels with smaller intensity on water images than coor_min.wii
-        if (threed(i,1) - w.wii)^2 + (threed(i,2) - w.fii)^2 > (coor_min.wii - w.wii)^2 + (coor_min.fii - w.fii)^2
-            threed(i,4) = 0;
-            threed(i,5) = 0;
+    for k = 1:numel(threed_(:,1))
+        if threed_(k,1) == threed(j,1) && threed_(k,2) == threed(j,2)
+            if threed(j,4) == w_ind1
+                threed_(k,4) = threed_(k,1);
+                threed_(k,5) = 0;
+            elseif threed(j,4) == f_ind(1)
+                threed_(k,4) = 0;
+                threed_(k,5) = threed_(k,2); % this is what I changed
+            else % this is when there is more than 2 clusters and/or removed noise
+                threed_(k,4) = 0;
+                threed_(k,5) = 0;
+            end
+            j = j + 1;
+            if j > length(threed)
+                break
+            end
         else
-            threed(i,4) = threed(i,1);
-            threed(i,5) = 1;
-        end
-    else
-        if  threed(i,2) > threed(i,1) - ...
-                (w.wii - (sqrt((coor_min.wii - w.wii)^2 + (coor_min.fii - w.fii)^2) + w.fii))
-            threed(i,4) = 0;
-            threed(i,5) = 0;
-        else
-            threed(i,4) = threed(i,1);
-            threed(i,5) = 1;
-        end
+            threed_(k,4) = 0;
+            threed_(k,5) = 0;
+        end  
     end
 end
-%% gscatter(threed(:,1),threed(:,2),threed(:,4),'br','xo'), axis tight
-figure(2);
-gscatter(threed(:,1),threed(:,2),threed(:,5),'rg','.','','off'), axis tight
-%% define which cluster is water and fat
-w_ind = 1; f_ind = 0;
-%% make maps with (real) 1 and 0 values
 % make a segmented image: 
-sgmnts{1,1} = reshape(threed(:,4),ova(1,1),ova(2,1),ova(3,1));
-%sgmnts{1,2} = reshape(threed_(:,5),ova(1,1),ova(2,1),ova(3,1)); %segmented images for fat as 1
+sgmnts{1,1} = reshape(threed_(:,4),ova(1,1),ova(2,1),ova(3,1));
+sgmnts{1,2} = reshape(threed_(:,5),ova(1,1),ova(2,1),ova(3,1)); %segmented images for fat as 1
 % for shifted CSI, you need to shift the ratio information:
 if shft_ud < 0 || shft_ud > 0
     voxel.img_s = size(sgmnts{1,1});
@@ -354,7 +388,7 @@ if shft_ud < 0 || shft_ud > 0
     1:(voxel.img_s(1) - 0.95) / (voxel.img_s(1) * 10):voxel.img_s(1),...
     1:voxel.img_s(3));
     sgmnts{1,3} = ba_interp3(sgmnts{1,1},XI,YI,ZI,'linear');
-    %sgmnts{1,4} = ba_interp3(sgmnts{1,2},XI,YI,ZI,'linear');
+    sgmnts{1,4} = ba_interp3(sgmnts{1,2},XI,YI,ZI,'linear');
     % the shift:
     % in Y direction:
     [YI,~,~] = size(sgmnts{1,3});
@@ -362,14 +396,14 @@ if shft_ud < 0 || shft_ud > 0
     if shft_ud < 0 % shift it up
         sgmnts{1,3}(knst + 1:YI,:,:) = sgmnts{1,3}(1:YI - knst,:,:);
         sgmnts{1,3}(1:knst,:,:) = 0;
-%        sgmnts{1,4}(knst + 1:YI,:,:) = sgmnts{1,4}(1:YI - knst,:,:);
-%        sgmnts{1,4}(1:knst,:,:) = 0;
+        sgmnts{1,4}(knst + 1:YI,:,:) = sgmnts{1,4}(1:YI - knst,:,:);
+        sgmnts{1,4}(1:knst,:,:) = 0;
     end
     if shft_ud > 0 % shift it down
         sgmnts{1,3}(YI + 1:YI + knst,:,:) = 0;
         sgmnts{1,3}(1:YI,:,:) = sgmnts{1,3}(knst + 1:YI + knst,:,:);
-%        sgmnts{1,4}(YI + 1:YI + knst,:,:) = 0;
-%        sgmnts{1,4}(1:YI,:,:) = sgmnts{1,4}(knst + 1:YI + knst,:,:);
+        sgmnts{1,4}(YI + 1:YI + knst,:,:) = 0;
+        sgmnts{1,4}(1:YI,:,:) = sgmnts{1,4}(knst + 1:YI + knst,:,:);
     end
     % interpolate back:
     [XI,YI,ZI] = meshgrid(1:voxel.img_s(2),1:voxel.img_s(1),1:voxel.img_s(3));
@@ -377,9 +411,9 @@ if shft_ud < 0 || shft_ud > 0
     1:(voxel.img_s(1) - 0.95) / (voxel.img_s(1) * 10):voxel.img_s(1),...
     1:voxel.img_s(3));
     sgmnts{1,1} = ba_interp3(X,Y,Z,sgmnts{1,3},XI,YI,ZI,'linear');
-%    sgmnts{1,2} = ba_interp3(X,Y,Z,sgmnts{1,4},XI,YI,ZI,'linear');
+    sgmnts{1,2} = ba_interp3(X,Y,Z,sgmnts{1,4},XI,YI,ZI,'linear');
     clear sgmnts{1,3};
-%    clear sgmnts{1,4};
+    clear sgmnts{1,4};
 end
 if shft_lr < 0 || shft_lr > 0
     voxel.img_s = size(sgmnts{1,1});
@@ -389,7 +423,7 @@ if shft_lr < 0 || shft_lr > 0
     0.95) / (voxel.img_s(2) * 10):voxel.img_s(2),1:voxel.img_s(1),...
     1:voxel.img_s(3));
     sgmnts{1,3} = ba_interp3(sgmnts{1,1},XI,YI,ZI,'linear');
-%    sgmnts{1,4} = ba_interp3(sgmnts{1,2},XI,YI,ZI,'linear');
+    sgmnts{1,4} = ba_interp3(sgmnts{1,2},XI,YI,ZI,'linear');
     % the shift:
     % in X direction:
     [~,XI,~] = size(sgmnts{1,3});
@@ -397,14 +431,14 @@ if shft_lr < 0 || shft_lr > 0
     if shft_lr < 0 % shift it left
         sgmnts{1,3}(:,knst + 1:XI,:) = sgmnts{1,3}(:,1:XI - knst,:);
         sgmnts{1,3}(:,1:knst,:) = 0;
-%        sgmnts{1,4}(:,knst + 1:XI,:) = sgmnts{1,4}(:,1:XI - knst,:);
-%        sgmnts{1,4}(:,1:knst,:) = 0;
+        sgmnts{1,4}(:,knst + 1:XI,:) = sgmnts{1,4}(:,1:XI - knst,:);
+        sgmnts{1,4}(:,1:knst,:) = 0;
     end
     if shft_lr > 0 % shift it right
         sgmnts{1,3}(:,XI + 1:XI + knst,:) = 0;
         sgmnts{1,3}(:,1:XI,:) = sgmnts{1,3}(:,knst + 1:XI + knst,:);
-%        sgmnts{1,4}(:,XI + 1:XI + knst,:) = 0;
-%        sgmnts{1,4}(:,1:XI,:) = sgmnts{1,4}(:,knst + 1:XI + knst,:);
+        sgmnts{1,4}(:,XI + 1:XI + knst,:) = 0;
+        sgmnts{1,4}(:,1:XI,:) = sgmnts{1,4}(:,knst + 1:XI + knst,:);
     end
     % interpolate back:
     [XI,YI,ZI] = meshgrid(1:voxel.img_s(2),1:voxel.img_s(1),1:voxel.img_s(3));
@@ -412,23 +446,23 @@ if shft_lr < 0 || shft_lr > 0
     0.95) / (voxel.img_s(2) * 10):voxel.img_s(2),1:voxel.img_s(1),...
     1:voxel.img_s(3));
     sgmnts{1,1} = ba_interp3(X,Y,Z,sgmnts{1,3},XI,YI,ZI,'linear');
-%    sgmnts{1,2} = ba_interp3(X,Y,Z,sgmnts{1,4},XI,YI,ZI,'linear');
+    sgmnts{1,2} = ba_interp3(X,Y,Z,sgmnts{1,4},XI,YI,ZI,'linear');
     clear sgmnts{1,3};
-%    clear sgmnts{1,4};
+    clear sgmnts{1,4};
 end
 %% add zeros to the map, so it's a cube with dimensions of 12x12x12 MRS voxels:
 sgmnts{2,1} = zeros(voxel.rm,voxel.rm,voxel.rm); % make a 120x120x120 matrix composed of zeros
-%sgmnts{2,2} = zeros(voxel.rm,voxel.rm,voxel.rm);
+sgmnts{2,2} = zeros(voxel.rm,voxel.rm,voxel.rm);
 sgmnts{2,1}(round((voxel.rm / 2) + 1 - ova(1,1) / 2):round((voxel.rm / 2) + ...
     ova(1,1) / 2),round((voxel.rm / 2) + 1 - ova(2,1) / 2):round((voxel.rm / 2) + ...
     ova(2,1) / 2),round((voxel.rm / 2) + 1 - ova(3,1) / 2):round((voxel.rm / 2) + ...
     ova(3,1) / 2)) = sgmnts{1,1}(:,:,:);
-%sgmnts{2,2}(round((voxel.rm / 2) + 1 - ova(1,1) / 2):round((voxel.rm / 2) + ...
-%    ova(1,1) / 2),round((voxel.rm / 2) + 1 - ova(2,1) / 2):round((voxel.rm / 2) + ...
-%    ova(2,1) / 2),round((voxel.rm / 2) + 1 - ova(3,1) / 2):round((voxel.rm / 2) + ...
-%    ova(3,1) / 2)) = sgmnts{1,2}(:,:,:);
+sgmnts{2,2}(round((voxel.rm / 2) + 1 - ova(1,1) / 2):round((voxel.rm / 2) + ...
+    ova(1,1) / 2),round((voxel.rm / 2) + 1 - ova(2,1) / 2):round((voxel.rm / 2) + ...
+    ova(2,1) / 2),round((voxel.rm / 2) + 1 - ova(3,1) / 2):round((voxel.rm / 2) + ...
+    ova(3,1) / 2)) = sgmnts{1,2}(:,:,:);
 sgmnts{3,1} = fftshift(fftn(sgmnts{2,1})); % fft of the map
-%sgmnts{3,2} = fftshift(fftn(sgmnts{2,2}));
+sgmnts{3,2} = fftshift(fftn(sgmnts{2,2}));
 % imagesc(sgmnts{2,1}(:,:,61)); axis equal
 % %%
 % %figure('units','normalized','position',[.05 .05 .6 .935]);
@@ -440,11 +474,11 @@ clear sgmnts_save;
 %% elliptical k-space !!!
 sgmnts{4,1} = sgmnts{3,1}(((voxel.rm / 2) - 5):((voxel.rm / 2) + ...
     6),((voxel.rm / 2) - 5):((voxel.rm / 2) + 6),((voxel.rm / 2) - 5):((voxel.rm / 2) + 6));
-%sgmnts{4,2} = sgmnts{3,2}(((voxel.rm / 2) - 5):((voxel.rm / 2) + ...
-%    6),((voxel.rm / 2) - 5):((voxel.rm / 2) + 6),((voxel.rm / 2) - 5):((voxel.rm / 2) + 6));
+sgmnts{4,2} = sgmnts{3,2}(((voxel.rm / 2) - 5):((voxel.rm / 2) + ...
+    6),((voxel.rm / 2) - 5):((voxel.rm / 2) + 6),((voxel.rm / 2) - 5):((voxel.rm / 2) + 6));
 %%
 sgmnts{5,1} = sgmnts{4,1};
-%sgmnts{5,2} = sgmnts{4,2};
+sgmnts{5,2} = sgmnts{4,2};
 pts_max = 12;
 avg_max = 2;
 if (mod(pts_max,2))
@@ -461,10 +495,10 @@ for avg=1:avg_max
                dist=sqrt(((i-pts_max/2)*(i-pts_max/2)+(j-pts_max/2)*(j-pts_max/2)+(k-pts_max/2)*(k-pts_max/2)))/(kpts);
                if ( dist <= 1 )
                    sgmnts{5,1}(i,j,k) = (floor(0.5+(avg-1)*(0.5+0.5*cos(pi*dist))+1)) * sgmnts{5,1}(i,j,k);
-%                   sgmnts{5,2}(i,j,k) = (floor(0.5+(avg-1)*(0.5+0.5*cos(pi*dist))+1)) * sgmnts{5,2}(i,j,k);
+                   sgmnts{5,2}(i,j,k) = (floor(0.5+(avg-1)*(0.5+0.5*cos(pi*dist))+1)) * sgmnts{5,2}(i,j,k);
                else 
                    sgmnts{5,1}(i,j,k) = 0;
-%                   sgmnts{5,2}(i,j,k) = 0;
+                   sgmnts{5,2}(i,j,k) = 0;
                end
            end
        end
@@ -481,10 +515,10 @@ w(r<=5) = interp1(linspace(-5,5,11),w1,r(r<=5));
 % fill the matrix to 12x12x12
 w = padarray(w,[1 1 1],'post');
 sgmnts{6,1} = sgmnts{5,1} .* w; % multiply the hamming filter with fourier transform
-%sgmnts{6,2} = sgmnts{5,2} .* w;
+sgmnts{6,2} = sgmnts{5,2} .* w;
 %% zero filling to 16x16x16
 sgmnts{7,1} = abs(ifftn(padarray(sgmnts{6,1},[2 2 2])));
-%sgmnts{7,2} = abs(ifftn(padarray(sgmnts{6,2},[2 2 2])));
+sgmnts{7,2} = abs(ifftn(padarray(sgmnts{6,2},[2 2 2])));
 %% scale it!
 ttl = max(max(max(sgmnts{7,1}))); % maximum value, not sure if this is the brightess idea
 l = voxel.number_x / 2 - voxel.step_x;

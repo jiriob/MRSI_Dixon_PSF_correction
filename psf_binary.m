@@ -168,7 +168,7 @@ elseif voxel.angle < -0.0 % anticlockwise
     voxel.fov_cntr_x = voxel.fov_cntr_x + 3;
     voxel.fov_cntr_y = voxel.fov_cntr_y + 4; % plus posunie ratio hore
 else
-    voxel.fov_cntr_x = voxel.fov_cntr_x + 3;
+    voxel.fov_cntr_x = voxel.fov_cntr_x + 4;
     voxel.fov_cntr_y = voxel.fov_cntr_y + 3; % plus posunie ratio hore
 end
 voxel.fov_cntr_x_rttd = numel(imgs{3,1}(1,:,1)) / 2 - (-voxel.fov_cntr_x) * cos(-voxel.angle) - ...
@@ -251,14 +251,7 @@ biny_a(:,1) = biny{1,1};
 biny_a(:,2) = biny{1,2};
 clear biny;
 iii = 100;
-figure(1); %plot histogram
-hist3(data,[64,64]);
-xlabel('MPG'); ylabel('Weight');
-set(gcf,'renderer','opengl');
-set(get(gca,'child'),'FaceColor','interp','CDataMode',...
-'auto');
-caxis([0 200]);
-%subplot(221);
+%figure(1);subplot(221);
 %imagesc(hist);
 %caxis([0 100]);
 % filter noise in the histogram
@@ -337,14 +330,15 @@ for i = 1:length(threed)
         end
     end
 end
+%figure(2)
 %% gscatter(threed(:,1),threed(:,2),threed(:,4),'br','xo'), axis tight
-figure(2);
+%figure(2);
 gscatter(threed(:,1),threed(:,2),threed(:,5),'rg','.','','off'), axis tight
 %% define which cluster is water and fat
 w_ind = 1; f_ind = 0;
 %% make maps with (real) 1 and 0 values
 % make a segmented image: 
-sgmnts{1,1} = reshape(threed(:,4),ova(1,1),ova(2,1),ova(3,1));
+sgmnts{1,1} = reshape(threed(:,5),ova(1,1),ova(2,1),ova(3,1));
 %sgmnts{1,2} = reshape(threed_(:,5),ova(1,1),ova(2,1),ova(3,1)); %segmented images for fat as 1
 % for shifted CSI, you need to shift the ratio information:
 if shft_ud < 0 || shft_ud > 0

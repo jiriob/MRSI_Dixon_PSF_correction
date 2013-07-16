@@ -1,5 +1,18 @@
+clear all;
 
-function [] = psf(directory, field, jmr, shft_ud, shft_lr, SNR_filter)
+directory = '/Volumes/Home/zgung/Desktop/Current/Schlapata/';
+field = 3;
+no_cor = 0;
+jmr = 0;
+shft_ud = 0;
+shft_lr = 0;
+SNR_filter = 0.2; % it is 0.1 for phantom and 0.2 for in vivo
+dm1 = 128;
+dm2 = 128;
+dm3 = 64;
+
+
+
 % minarikova.lenka@gmail.com
 
 % !!!!!!!!!!!!!!!!!! readme !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -10,6 +23,10 @@ function [] = psf(directory, field, jmr, shft_ud, shft_lr, SNR_filter)
 % directory = '~/Patient_name' - where is a directory called "Spec" with 
 %   a dicom 3D CSI file
 % field = 3 - e
+% w_nois water pixel intensity noise threshold
+% f_nois = fat noise threshold (ex. I know fat intensity is only above 50)
+% s_nois: set to 1 if you want saved noise information to be loaded 
+%   instead of again computing new data sets 0
 % jmr = 1 if the data are from jmrui (usualy for phantom measurements)
 % shft_ud: for shifted CSI: up -0.% down +0.%
 % shft_lr: for shifted CSI: left -0.% right +0.%
@@ -25,9 +42,27 @@ function [] = psf(directory, field, jmr, shft_ud, shft_lr, SNR_filter)
 % !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 % search for variables in spectroscopy file:
-
 tic;
-
+%directory_main = ('/Volumes/Home/zgung/Desktop/cholin/Kuktics/');
+%cd(directory_main);
+% List all data folders
+%subs = dir(pwd);
+% Remove non-folders, . and .. items from data folder list
+%for k = length(subs):-1:1
+    % extract subjects names
+%    if ~subs(k).isdir
+%        subs(k) = [];
+%        continue
+%    end
+%    fname = subs(k).name;
+%    if fname(1) == '.'
+%        subs(k) = [];
+%    end
+%end
+%%%
+%subjects = subs;
+%nextSub = 1;% <<<<<<<<< Here you can choose the data folder 
+%directory = strcat(directory_main,subjects(nextSub).name,'/');
 directory_main = directory;
 directory_spec = strcat(directory,'Spec/');
 cd(directory_spec);
@@ -78,7 +113,7 @@ for k = length(slices):-1:1
         slices(k) = [];
     end
 end
-% determine CSI-in-press parameters:
+%% determine CSI-in-press parameters:
 voxel.size_z = voxel.FoV_z / voxel.number_z; % the size of 1 voxel after zero filling in mm
 voxel.size_y = voxel.FoV_y / voxel.number_y;
 voxel.size_x = voxel.FoV_x / voxel.number_x;
@@ -96,34 +131,29 @@ else
     voxel.step_y = voxel.number_y / 2 - fix((voxel.FoV_y - voxel.p_fov_y) / 2 / voxel.size_y);
     voxel.step_z = voxel.number_z / 2 - fix((voxel.FoV_z - voxel.p_fov_z) / 2 / voxel.size_z);
 end
+
 nfo1 = dicominfo(slices(1).name);
-% %%%%%%%%%%%%%%%%%%%%%%% Import the W images %%%%%%%%%%%%%%%%%%%%%%%%%
+%% Import the images, center them and regrid
+% make the center of coordinates the centre of image: horizontaly
 n = numel(slices);
 imgs = cell(1,1);
 for ii = 1:n
     imgs{1,1}(:,:,ii) = double(dicomread(slices(ii).name));
-end   
-%% %%%%% move to dixom folder: fat, import fat images %%%%%%
-cd(strcat(directory,'Dixon_1.0iso_PAT2_v2_F/'));
-slices = dir(pwd);
-for k = length(slices):-1:1
-    fname = slices(k).name;
-    if fname(1) == '.'
-        slices(k) = [];
-    end
 end
-n = numel(slices);
-for ii = 1:n
-    imgs{1,2}(:,:,ii) = double(dicomread(slices(ii).name));
-end
-
-%% interpolate so 1 mm ~ 1 image voxel
-    [XI,YI,ZI] = meshgrid(1:(floor(10000 * 1 / nfo1.PixelSpacing(1,1)) / 10000):length(imgs{1,1}(1,:,1)),...
+%% simulate shorter measurement: cut the center of k-space to half
+% add zeros so you have the same resolution
+fft_imgs{1,1} = fftshift(fftn(imgs{1,1}));
+fft_imgs{2,1} = fft_imgs{1,1}((nfo1.Rows - dm1) / 2:(nfo1.Rows + dm1) / 2 - 1,(nfo1.Columns - dm2) / 2:(nfo1.Columns + dm2) / 2 - 1,...
+    (n - dm3) / 2:(n + dm3) / 2 - 1);
+fft_imgs{3,1} = abs(ifftn(padarray(fft_imgs{2,1},[double(nfo1.Rows - dm1) / 2,double(nfo1.Columns - dm2) / 2,double(n - dm3) / 2])));
+%
+[XI,YI,ZI] = meshgrid(1:(floor(10000 * 1 / nfo1.PixelSpacing(1,1)) / 10000):length(imgs{1,1}(1,:,1)),...
         1:(floor(10000 * 1 / nfo1.PixelSpacing(2,1)) / 10000):length(imgs{1,1}(:,1,1)),...
         1:(floor(10000 * 1 / nfo1.SliceThickness) / 10000):length(imgs{1,1}(1,1,:)));
-    imgs{2,1} = ba_interp3(imgs{1,1},XI,YI,ZI,'nearest'); % fast interpolation to 1x1x1 mm3 
+    imgs{2,1} = ba_interp3(fft_imgs{3,1},XI,YI,ZI,'nearest'); % fast interpolation to 1x1x1 mm3
     [YI,XI,~] = size(imgs{2,1});
-% make the center of coordinates the centre of each axial slice: horizontaly
+
+%% make the center of coordinates the centre of each axial slice: horizontaly
 if -nfo1.ImagePositionPatient(1,1) > XI -  ...
         -nfo1.ImagePositionPatient(1,1) == 1
         % add zeros to the end
@@ -148,43 +178,69 @@ else
             imgs{2,1}(1:YI,:,:);
         imgs{2,1}(1:YI - -round(2 * nfo1.ImagePositionPatient(2,1)),:,:) = 0;
 end
-% other csi parameters:
+%% other csi parameters:
 % determine the first slice and last slices = determine the press box transversal beginning:
 voxel.FoV_z_1 = round(voxel.fov_cntr_z + voxel.p_fov_z / 2); % the real position in number of pixels in the image
 voxel.FoV_z_2 = round(voxel.fov_cntr_z - voxel.p_fov_z / 2);
-voxel.csi_slice_1 = round((nfo1.ImagePositionPatient(3,1) - voxel.FoV_z_1) + 1) + 1; %1st - fhead
-voxel.csi_slice_last = round((nfo1.ImagePositionPatient(3,1) - voxel.FoV_z_2)) + 1; %2nd - from feet
+voxel.csi_slice_1 = round((nfo1.ImagePositionPatient(3,1) - voxel.FoV_z_1) + 1) + 2; %1st - fhead
+voxel.csi_slice_last = round((nfo1.ImagePositionPatient(3,1) - voxel.FoV_z_2)) + 2; %2nd - from feet
 imgs{3,1} = imgs{2,1}(:,:,voxel.csi_slice_1:voxel.csi_slice_last); % remove the additional slices    
 
 % look if the csi is rotated about an angle:
 voxel.angle_deg = radtodeg(voxel.angle);
-%
+%%
 % the center point of csi in press box in rotated images has coordinates from the
 % left upper corner:
 if voxel.angle > 0.0 % clockwise
     voxel.fov_cntr_x = voxel.fov_cntr_x + 4;
-    voxel.fov_cntr_y = voxel.fov_cntr_y + 3; % plus posunie ratio hore
+    voxel.fov_cntr_y = voxel.fov_cntr_y + 2; % plus posunie ratio hore
 elseif voxel.angle < -0.0 % anticlockwise
-    voxel.fov_cntr_x = voxel.fov_cntr_x + 3;
-    voxel.fov_cntr_y = voxel.fov_cntr_y + 4; % plus posunie ratio hore
+    voxel.fov_cntr_x = voxel.fov_cntr_x + 4;
+    voxel.fov_cntr_y = voxel.fov_cntr_y + 3; % plus posunie ratio hore
 else
-    voxel.fov_cntr_x = voxel.fov_cntr_x + 3;
+    voxel.fov_cntr_x = voxel.fov_cntr_x + 4;
     voxel.fov_cntr_y = voxel.fov_cntr_y + 3; % plus posunie ratio hore
 end
 voxel.fov_cntr_x_rttd = numel(imgs{3,1}(1,:,1)) / 2 - (-voxel.fov_cntr_x) * cos(-voxel.angle) - ...
      (-voxel.fov_cntr_y) * sin(-voxel.angle) + 0;
 voxel.fov_cntr_y_rttd = numel(imgs{3,1}(:,1,1)) / 2 - (-voxel.fov_cntr_y) * cos(-voxel.angle) + ...
      (-voxel.fov_cntr_x) * sin(-voxel.angle) + 0;
+
 % and width and hight:
 voxel.fov_x1 = floor(voxel.fov_cntr_x_rttd - voxel.p_fov_x / 2);
 voxel.fov_y1 = floor(voxel.fov_cntr_y_rttd - voxel.p_fov_y / 2);
+% read image and turn it, cut it
+for ii = 1:numel(imgs{3,1}(1,1,:))
+   imgs{4,1}(:,:,ii) = imcrop(imrotate(imgs{3,1}(:,:,ii),-voxel.angle_deg,...
+       'nearest','crop'),[voxel.fov_x1 voxel.fov_y1 (voxel.p_fov_x - 1) (voxel.p_fov_y - 1)]);
+% rotate default pictures:
+   imgs{3,1}(:,:,ii) = imrotate(imgs{3,1}(:,:,ii),-voxel.angle_deg,...
+       'nearest','crop');
+end
+%% tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt
+%%%%%%% move to dixom folder: fat
+cd(strcat(directory,'Dixon_1.0iso_PAT2_v2_F/'));
+slices = dir(pwd);
+for k = length(slices):-1:1
+    fname = slices(k).name;
+    if fname(1) == '.'
+        slices(k) = [];
+    end
+end
+% make the center of coordinates the centre of image: horizontaly
+n = numel(slices);
+for ii = 1:n
+    imgs{1,2}(:,:,ii) = double(dicomread(slices(ii).name));
+end
+fft_imgs{1,2} = fftshift(fftn(imgs{1,2}));
+fft_imgs{2,2} = fft_imgs{1,2}((nfo1.Rows - dm1) / 2:(nfo1.Rows + dm1) / 2 - 1,(nfo1.Columns - dm2) / 2:(nfo1.Columns + dm2) / 2 - 1,...
+    (n - dm3) / 2:(n + dm3) / 2 - 1);
+fft_imgs{3,2} = abs(ifftn(padarray(fft_imgs{2,2},[double(nfo1.Rows - dm1) / 2,double(nfo1.Columns - dm2) / 2,double(n - dm3) / 2])));
 
-%% tttttttttttttt process fat images tttttttttttttttttttttttttttttttttttttt
-% interpolate
-[XI,YI,ZI] = meshgrid(1:(floor(10000 * 1 / nfo1.PixelSpacing(1,1)) / 10000):length(imgs{1,1}(1,:,1)),...
-    1:(floor(10000 * 1 / nfo1.PixelSpacing(2,1)) / 10000):length(imgs{1,1}(:,1,1)),...
-    1:(floor(10000 * 1 / nfo1.SliceThickness) / 10000):length(imgs{1,1}(1,1,:)));
-imgs{2,2} = ba_interp3(imgs{1,2},XI,YI,ZI,'nearest'); % fast interpolation to 1x1x1 mm3
+[XI,YI,ZI] = meshgrid(1:1 / nfo1.PixelSpacing(1,1):length(imgs{1,2}(1,:,1)),...
+    1:1 / nfo1.PixelSpacing(2,1):length(imgs{1,2}(:,1,1)),...
+    1:1 / nfo1.SliceThickness:length(imgs{1,2}(1,1,:)));
+imgs{2,2} = ba_interp3(fft_imgs{3,2},XI,YI,ZI,'nearest'); % fast interpolation to 1x1x1 mm3
 [YI,XI,~] = size(imgs{2,2});
 % make the center of coordinates the centre of image: horizontaly
 if -nfo1.ImagePositionPatient(1,1) > XI -  ...
@@ -212,15 +268,6 @@ else
         imgs{2,2}(1:YI - -round(2 * nfo1.ImagePositionPatient(2,1)),:,:) = 0;
 end
 imgs{3,2} = imgs{2,2}(:,:,voxel.csi_slice_1:voxel.csi_slice_last); % remove the additional slices
-
-% read image and turn it, cut it
-for ii = 1:numel(imgs{3,1}(1,1,:))
-   imgs{4,1}(:,:,ii) = imcrop(imrotate(imgs{3,1}(:,:,ii),-voxel.angle_deg,...
-       'nearest','crop'),[voxel.fov_x1 voxel.fov_y1 (voxel.p_fov_x - 1) (voxel.p_fov_y - 1)]);
-% rotate default pictures:
-   imgs{3,1}(:,:,ii) = imrotate(imgs{3,1}(:,:,ii),-voxel.angle_deg,...
-       'nearest','crop');
-end
 % read image and turn it, cut it
 for ii = 1:numel(imgs{3,2}(1,1,:))
    imgs{4,2}(:,:,ii) = imcrop(imrotate(imgs{3,2}(:,:,ii),-voxel.angle_deg,...
@@ -251,36 +298,30 @@ biny_a(:,1) = biny{1,1};
 biny_a(:,2) = biny{1,2};
 clear biny;
 iii = 100;
-figure(1); %plot histogram
-hist3(data,[64,64]);
-xlabel('MPG'); ylabel('Weight');
-set(gcf,'renderer','opengl');
-set(get(gca,'child'),'FaceColor','interp','CDataMode',...
-'auto');
-caxis([0 200]);
-%subplot(221);
-%imagesc(hist);
-%caxis([0 100]);
+figure(1);
+subplot(221);
+imagesc(hist);
+caxis([0 100]);
 % filter noise in the histogram
 noiseFilter = imhmin(hist,2);
 %# Gaussian-filter the image:
 gaussFilter = fspecial('gaussian',[64 64],5);  %# Create the filter
 filteredData = imfilter(noiseFilter,gaussFilter);
-%subplot(222);
-%imagesc(filteredData);
-%title('Gaussian-filtered image');
-%caxis([0 100]);
+subplot(222);
+imagesc(filteredData);
+title('Gaussian-filtered image');
+caxis([0 100]);
 % # Perform a morphological close operation:
 closeElement = strel('disk',4);  %# Create a disk-shaped structuring element
 closedData = imclose(filteredData,closeElement);
-%subplot(223);
-%imagesc(closedData);
-%title('Closed image');
-%caxis([0 100]);
+subplot(223);
+imagesc(closedData);
+title('Closed image');
+caxis([0 100]);
 % find centers
 mxma = imregionalmax(closedData);
-%subplot(224);
-%imagesc(mxma);
+subplot(224);
+imagesc(mxma);
 [X,Y] = find(mxma==max(mxma(:))); 
 % assign bins to the max points
 [w.X,w.ind] = max(X);
@@ -316,7 +357,7 @@ coor_min.wii = biny_a(coor_min.X,1);
 coor_min.fii = biny_a(coor_min.Y,2);
 % solve a equation: a circle with the center in water maximum and radius of the "minimum"
 % (x - w.wii)^2 + (y - w.fii)^2 = sqrt((coor_min.wii - w.wii)^2 + (coor_min.fii - w.fii)^2))
-%% second equation: y = x (where x is the "minimum")
+% second equation: y = x (where x is the "minimum")
 for i = 1:length(threed)
     if threed(i,1) < w.wii % for voxels with smaller intensity on water images than coor_min.wii
         if (threed(i,1) - w.wii)^2 + (threed(i,2) - w.fii)^2 > (coor_min.wii - w.wii)^2 + (coor_min.fii - w.fii)^2
@@ -337,7 +378,7 @@ for i = 1:length(threed)
         end
     end
 end
-%% gscatter(threed(:,1),threed(:,2),threed(:,4),'br','xo'), axis tight
+% gscatter(threed(:,1),threed(:,2),threed(:,4),'br','xo'), axis tight
 figure(2);
 gscatter(threed(:,1),threed(:,2),threed(:,5),'rg','.','','off'), axis tight
 %% define which cluster is water and fat
@@ -354,7 +395,7 @@ if shft_ud < 0 || shft_ud > 0
     1:(voxel.img_s(1) - 0.95) / (voxel.img_s(1) * 10):voxel.img_s(1),...
     1:voxel.img_s(3));
     sgmnts{1,3} = ba_interp3(sgmnts{1,1},XI,YI,ZI,'linear');
-    %sgmnts{1,4} = ba_interp3(sgmnts{1,2},XI,YI,ZI,'linear');
+%    sgmnts{1,4} = ba_interp3(sgmnts{1,2},XI,YI,ZI,'linear');
     % the shift:
     % in Y direction:
     [YI,~,~] = size(sgmnts{1,3});
