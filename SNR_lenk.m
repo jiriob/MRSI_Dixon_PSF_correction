@@ -1,7 +1,7 @@
 % minarikova.lenka@gmail.com
 % v 1.0
 
-function [SNR] = SNR_lenk(directory, cho_ppm, bdwtd, trnct, control) %, CSI_shft_ud, CSI_shft_lr)
+function [] = SNR_lenk(directory, cho_ppm, bdwtd, trnct, control) %, CSI_shft_ud, CSI_shft_lr)
 
 % !!!!!!!!!!!!!!!!!! readme !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 % for working you need my other function called read_ascconv_lenk.m 
@@ -30,7 +30,7 @@ cd(directory_spec);
 disp(strcat('Processing:',directory));
 %% <<<<<<<<<<<<<<<<< Parameters >>>>>>>>>>>>>>>>>>
 snr.cho = cho_ppm;
-press_big = 1; % choose if you want more voxel (even that no totally inside the press box)
+press_big = 0; % choose if you want more voxel (even that no totally inside the press box)
 snr.noise = 7.4; % Aus diesem Bereich wird das Rausch Siganl genommen +0.5 bis -0.5
 % Anfangs und Endewert fuer die ppm Skala eintragen
 anfang = 8.76; % Anfang der ppm Skala 8.76 normally

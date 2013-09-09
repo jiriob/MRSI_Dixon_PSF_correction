@@ -1,6 +1,6 @@
 % minarikova.lenka@gmail.com
 
-function [signal3D] = psf_pics(directory,no_cor,fctr, CSI_shft_ud, CSI_shft_lr)
+function [signal3D] = psf_pics(directory, no_cor, fctr, CSI_shft_ud, CSI_shft_lr)
 
 % !!!!!!!!!!!!!!!!!! readme !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 % for working you need my other function called read_ascconv_lenk.m 
@@ -39,6 +39,26 @@ for k = length(slices):-1:1 % find .IMA file
         slices(k) = [];
     end
 end
+%% check if the slices are in a good order
+Afields = fieldnames(slices);
+Acell = struct2cell(slices);
+sz = size(Acell);
+% Convert to a matrix
+Acell = reshape(Acell, sz(1), []);      % Px(MxN)
+% Make each field a column
+Acell = Acell';                       % (MxN)xP
+k = 1;
+for k = 1:length(slices)
+    [~,~,~,~,slc_n,~,~,~,~,~,~,~,~,~] = strread(slices(k,1).name,'%s %s %s %d %d %d %d %d %d %d %d %d %d %s','delimiter','.');
+    %slc_n = num2cell(slc_n);
+    Acell{k,4}= slc_n;
+end
+% Sort by first field "name"
+Acell = sortrows(Acell, 4);
+% Put back into original cell array format
+Acell = reshape(Acell', sz);
+% Convert to Struct
+slices = cell2struct(Acell, Afields, 1);
 %voxel = read_ascconv_lenk(slices(1).name); % read parrameter from spectroscopy dicom
 nfo1 = dicominfo(slices(1).name);
 %[signal3D,sgmnts,voxel] = psf(slices(1).name);
@@ -127,12 +147,12 @@ for aa = 2:c.pix_depth + 1
     hold on
     if g_test < 10
         hh2 = image((voxel.fov_x1 - 3) * fctr,(voxel.fov_y1 - 3) * fctr,pic .* 100,...
-            'AlphaData',0.5,...
-            'CDataMapping','scaled');
+            'AlphaDataMapping','scaled',...
+            'AlphaData',gradient(pic));
     else
         hh2 = image((voxel.fov_x1 - 3) * fctr,(voxel.fov_y1 - 3) * fctr,pic,...
-            'AlphaData',0.35,...
-            'CDataMapping','scaled');
+            'AlphaDataMapping','scaled',...
+            'AlphaData',gradient(pic));
     end
 
 %        'AlphaData',gradient(pic),...

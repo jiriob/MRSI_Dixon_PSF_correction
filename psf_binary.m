@@ -1,5 +1,5 @@
 
-function [] = psf(directory, field, jmr, shft_ud, shft_lr, SNR_filter)
+function [] = psf_binary(directory, field, jmr, shft_ud, shft_lr, SNR_filter)
 % minarikova.lenka@gmail.com
 
 % !!!!!!!!!!!!!!!!!! readme !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -51,6 +51,27 @@ for k = length(slices):-1:1 % find .IMA file
         slices(k) = [];
     end
 end
+%% check if the slices are in a good order
+Afields = fieldnames(slices);
+Acell = struct2cell(slices);
+sz = size(Acell);
+% Convert to a matrix
+Acell = reshape(Acell, sz(1), []);      % Px(MxN)
+% Make each field a column
+Acell = Acell';                       % (MxN)xP
+k = 1;
+for k = 1:length(slices)
+    [~,~,~,~,slc_n,~,~,~,~,~,~,~,~,~] = strread(slices(k,1).name,'%s %s %s %d %d %d %d %d %d %d %d %d %d %s','delimiter','.');
+    %slc_n = num2cell(slc_n);
+    Acell{k,4}= slc_n;
+end
+% Sort by first field "name"
+Acell = sortrows(Acell, 4);
+% Put back into original cell array format
+Acell = reshape(Acell', sz);
+% Convert to Struct
+slices = cell2struct(Acell, Afields, 1);
+
 voxel = read_ascconv_lenk(slices(1).name); % read parrameter from spectroscopy dicom
 
 % check coil elements:
@@ -83,14 +104,18 @@ voxel.size_z = voxel.FoV_z / voxel.number_z; % the size of 1 voxel after zero fi
 voxel.size_y = voxel.FoV_y / voxel.number_y;
 voxel.size_x = voxel.FoV_x / voxel.number_x;
 % number of steps in pressbox after zero filling in each direction / 2:
-if press_big == 1
+if press_big == 1 && jmr == 0
     voxel.step_x = voxel.number_x / 2 - ceil((voxel.FoV_x - voxel.p_fov_x) / 2 / voxel.size_x); %include also voxels touching the pressbox fringes
     voxel.step_y = voxel.number_y / 2 - ceil((voxel.FoV_y - voxel.p_fov_y) / 2 / voxel.size_y);
     voxel.step_z = voxel.number_z / 2 - ceil((voxel.FoV_z - voxel.p_fov_z) / 2 / voxel.size_z);
-elseif press_big == 0
+elseif press_big == 0 && jmr == 0
     voxel.step_x = voxel.number_x / 2 - fix((voxel.FoV_x - voxel.p_fov_x) / 2 / voxel.size_x) - 1; %include only voxels inside the PRESS box
     voxel.step_y = voxel.number_y / 2 - fix((voxel.FoV_y - voxel.p_fov_y) / 2 / voxel.size_y) - 1;
     voxel.step_z = voxel.number_z / 2 - fix((voxel.FoV_z - voxel.p_fov_z) / 2 / voxel.size_z) - 1;
+    elseif jmr == 1
+    voxel.step_x = voxel.number_x / 2 - ceil((voxel.FoV_x - voxel.p_fov_x) / 2 / voxel.size_x); %whatever
+    voxel.step_y = voxel.number_y / 2 - ceil((voxel.FoV_y - voxel.p_fov_y) / 2 / voxel.size_y) - 1;
+    voxel.step_z = voxel.number_z / 2 - ceil((voxel.FoV_z - voxel.p_fov_z) / 2 / voxel.size_z) - 1;
 else
     voxel.step_x = voxel.number_x / 2 - fix((voxel.FoV_x - voxel.p_fov_x) / 2 / voxel.size_x); %include voxels with PRESSbox fringes inside
     voxel.step_y = voxel.number_y / 2 - fix((voxel.FoV_y - voxel.p_fov_y) / 2 / voxel.size_y);
