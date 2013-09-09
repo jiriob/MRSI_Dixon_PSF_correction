@@ -1,5 +1,5 @@
 
-function [] = psf_real(directory, field, jmr, shft_ud, shft_lr, SNR_filter)
+function [] = psf_real(directory, field, jmr, shft_ud, shft_lr, SNR_filter, rvsb)
 % minarikova.lenka@gmail.com
 
 faktr = 1;
@@ -16,6 +16,8 @@ faktr = 1;
 % shft_lr: for shifted CSI: left -0.% right +0.%
 % SNR_filter: change this value to 0.1 if you want 10% of SNR to be filter (for 
 %    phantoms) and to 0.2 (for in vivo data)
+% rvsb = is 1 for real values taken from the DIXON, and 0 for binary values (only ones
+%    and zeros) 
 
 % the output is maximal, mean value of all SNRs of Cho and a table 
 %   with all SNRs in one row, all saved in txt files in Spec directory
@@ -473,7 +475,12 @@ gscatter(threed(:,1),threed(:,2),threed(:,5),'rg','.','','off'), axis tight
 w_ind = 1; f_ind = 0;
 %% make maps with (real) 1 and 0 values threed(:,5) or with real threed(:,4)
 % make a segmented image: 
-sgmnts{1,1} = reshape(threed(:,4),ova(1,1),ova(2,1),ova(3,1));
+if rvsb == 0 % the output are binary values
+    sgmnts{1,1} = reshape(threed(:,5),ova(1,1),ova(2,1),ova(3,1));
+else
+    sgmnts{1,1} = reshape(threed(:,4),ova(1,1),ova(2,1),ova(3,1));
+end
+
 %sgmnts{1,2} = reshape(threed_(:,5),ova(1,1),ova(2,1),ova(3,1)); %segmented images for fat as 1
 %% for shifted CSI, you need to shift the ratio information:
 if shft_ud < 0 || shft_ud > 0
@@ -717,15 +724,10 @@ for k = 1:voxel.step_z * 2
             elseif rtio(j,i,k) < 0.1 % if there is a good enough SNR but the ratio is visibly small, don't count it
                 disp('!!! There in enough SNR in a suspiciosly fatty voxel !!!');
                 disp(strcat('ijk= ',num2str(i),',',num2str(j),',',num2str(k)));
-                
-                
-               
-                density_wt_cor(j,i,k) = mtrx2(j,i,k); % this is not supposed to be here
-                density(j,i,k) = mtrx2(j,i,k) / rtio(j,i,k); % this is not supossed to be here
-                 % this shit should be turned normaly on !!!!! it's the
-                %
-                %density_wt_cor(j,i,k) = 0; %mtrx2(j,i,k);
-                %density(j,i,k) =  0; %mtrx2(j,i,k) / rtio(j,i,k);
+
+                    density_wt_cor(j,i,k) = 0; %mtrx2(j,i,k);
+                    density(j,i,k) =  0; %mtrx2(j,i,k) / rtio(j,i,k);
+
             else % associate the choline and density in each and compute the choline/density ratio:
                 %density(j,i,k) = rtio(j,i,k);
                 density_wt_cor(j,i,k) = mtrx2(j,i,k);
