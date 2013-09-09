@@ -397,11 +397,8 @@ coor_min.fii_n = biny_a(coor_min.Y_n,2);
 % the WvsN minimum:
 %%
 rrr = sqrt((coor_min.wii - w.wii)^2 + (coor_min.fii - w.fii)^2) * faktr;
-%aaa = ((coor_min.X_n)^2 - coor_min.X_n * (w.wii - rrr)) / w.fii;
-%bbb = faktr * (w.wii - rrr - coor_min.X_n) / (w.fii);
-
-aaa = ((coor_min.wii_n)^2 - coor_min.wii_n * (w.wii - rrr)) / w.fii;
-bbb = faktr * (w.wii - rrr - coor_min.wii_n) / (2 * w.fii);
+aaa = (w.fii * coor_min.wii_n) / (rrr + coor_min.wii_n - w.wii); % this are the 'a' and 'b' from y = a + b*x (the line between water-noise minimum and the first point of the circle
+bbb = w.fii / (w.wii - rrr - coor_min.wii_n);
 
 delta = (w.wii - w.fii - coor_min.wii_n)^2 - 2 * (w.wii^2 + w.fii^2 - rrr^2 - 2 * coor_min.wii_n * w.wii + coor_min.wii_n^2);
 xxx = faktr * (sqrt(delta) - w.wii + w.fii + coor_min.wii_n) / 2;
