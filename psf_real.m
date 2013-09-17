@@ -4,22 +4,22 @@ function [] = psf_real(directory, field, jmr, shft_ud, shft_lr, SNR_filter, rvsb
 
 faktr = 1;
 % !!!!!!!!!!!!!!!!!! readme !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-% for working you need my other function called read_ascconv_lenk.m 
+% for working you need my other function called read_ascconv_lenk.m
 %   for reading parameters from the dicom
-%   and you need a txt file with a set of SNR to evaluate, made with 
+%   and you need a txt file with a set of SNR to evaluate, made with
 %   my other function called SNR_lenk.m
-% directory = '~/Patient_name' - where is a directory called "Spec" with 
+% directory = '~/Patient_name' - where is a directory called "Spec" with
 %   a dicom 3D CSI file
 % field = 3 - e
 % jmr = 1 if the data are from jmrui (usualy for phantom measurements)
 % shft_ud: for shifted CSI: up -0.% down +0.%
 % shft_lr: for shifted CSI: left -0.% right +0.%
-% SNR_filter: change this value to 0.1 if you want 10% of SNR to be filter (for 
+% SNR_filter: change this value to 0.1 if you want 10% of SNR to be filter (for
 %    phantoms) and to 0.2 (for in vivo data)
 % rvsb = is 1 for real values taken from the DIXON, and 0 for binary values (only ones
-%    and zeros) 
+%    and zeros)
 
-% the output is maximal, mean value of all SNRs of Cho and a table 
+% the output is maximal, mean value of all SNRs of Cho and a table
 %   with all SNRs in one row, all saved in txt files in Spec directory
 
 %if there is this error: Undefined function or variable "w_ind".
@@ -88,7 +88,7 @@ if field == 3 % anyway we are not measuring dixons on 7 T
                 strcat(voxel.coilel2(4)) == strcat('L')
             disp('Left coil elements: ON');
         end
-    end  
+    end
 end
 %% move to dixom folder: water first
 disp('Processing PSF');
@@ -139,7 +139,7 @@ n = numel(slices);
 imgs = cell(1,1);
 for ii = 1:n
     imgs{1,1}(:,:,ii) = double(dicomread(slices(ii).name));
-end   
+end
 %% %%%%% move to dixom folder: fat, import fat images %%%%%%
 cd(strcat(directory,'Dixon_1.0iso_PAT2_v2_F/'));
 slices = dir(pwd);
@@ -213,8 +213,8 @@ end
 % determine the first slice and last slices = determine the press box transversal beginning:
 voxel.FoV_z_1 = round(voxel.fov_cntr_z + voxel.p_fov_z / 2); % the real position in number of pixels in the image
 voxel.FoV_z_2 = round(voxel.fov_cntr_z - voxel.p_fov_z / 2);
-voxel.csi_slice_1 = round((nfo1.ImagePositionPatient(3,1) - voxel.FoV_z_1) + 1) + 1; %1st - fhead
-voxel.csi_slice_last = round((nfo1.ImagePositionPatient(3,1) - voxel.FoV_z_2)) + 1; %2nd - from feet
+voxel.csi_slice_1 = round((nfo1.ImagePositionPatient(3,1) - voxel.FoV_z_1) + 1); %1st - fhead
+voxel.csi_slice_last = round((nfo1.ImagePositionPatient(3,1) - voxel.FoV_z_2)); %2nd - from feet
 % check if the values are negative and turn them positive
 if voxel.csi_slice_1 < 0
     ttt = voxel.csi_slice_1;
@@ -222,7 +222,7 @@ if voxel.csi_slice_1 < 0
     voxel.csi_slice_last = abs(ttt);
     clear ttt;
 end
-imgs{3,1} = imgs{2,1}(:,:,voxel.csi_slice_1:voxel.csi_slice_last); % remove the additional slices   
+imgs{3,1} = imgs{2,1}(:,:,voxel.csi_slice_1:voxel.csi_slice_last); % remove the additional slices
 imgs{3,2} = imgs{2,2}(:,:,voxel.csi_slice_1:voxel.csi_slice_last); % remove the additional slices
 
 % look if the csi is rotated about an angle:
@@ -245,8 +245,8 @@ voxel.fov_cntr_x_rttd = numel(imgs{3,1}(1,:,1)) / 2 - (-voxel.fov_cntr_x) * cos(
 voxel.fov_cntr_y_rttd = numel(imgs{3,1}(:,1,1)) / 2 - (-voxel.fov_cntr_y) * cos(-voxel.angle) + ...
      (-voxel.fov_cntr_x) * sin(-voxel.angle) + 0;
 % and width and hight:
-voxel.fov_x1 = floor(voxel.fov_cntr_x_rttd - voxel.p_fov_x / 2);
-voxel.fov_y1 = floor(voxel.fov_cntr_y_rttd - voxel.p_fov_y / 2);
+voxel.fov_x1 = floor(voxel.fov_cntr_x_rttd - voxel.p_fov_x / 2) - 1;
+voxel.fov_y1 = floor(voxel.fov_cntr_y_rttd - voxel.p_fov_y / 2) - 1;
 
 % read image and turn it, cut it
 for ii = 1:numel(imgs{3,1}(1,1,:))
@@ -311,7 +311,7 @@ caxis([0 30]);
 mxma = imregionalmax(closedData);
 subplot(224);
 imagesc(mxma);
-[X,Y] = find(mxma==max(mxma(:))); 
+[X,Y] = find(mxma==max(mxma(:)));
 % assign bins to the max points
 [w.X,w.ind] = max(X);
 w.Y = Y(w.ind);
@@ -323,7 +323,7 @@ n.X = 1; n.Y = 1;
 syms a k
 [sol_a, sol_k] = solve(k * w.X + a == w.Y, k * f.X + a == f.Y);
 yy = ones(size((f.X + 1):(w.X - 1)));
-i = 0; 
+i = 0;
 if closedData(f.X,f.Y) > closedData(w.X,w.Y)
     for ii = (f.X + 1):(w.X - 1) % pouzi indexy radsej
         i = i + 1;
@@ -353,13 +353,13 @@ coor_min.wii = biny_a(coor_min.X_w,1);
 coor_min.fii = biny_a(coor_min.Y_w,2);
 % solve a equation: a circle with the center in water maximum and radius of the "minimum"
 % (x - w.wii)^2 + (y - w.fii)^2 = sqrt((coor_min.wii - w.wii)^2 + (coor_min.fii - w.fii)^2))
-%% find the minimum between water and noise 
+%% find the minimum between water and noise
 %syms a k
 [sol_a, sol_k] = solve(k * w.X + a == w.Y, k * n.X + a == n.Y);
 yy = ones(size((n.X + 1):(w.X - 1)));
 i = 0;
 if closedData(n.X,n.Y) > closedData(w.X,w.Y) % if noise is higher
-    for ii = (n.X + 1):(w.X - 1) 
+    for ii = (n.X + 1):(w.X - 1)
         i = i + 1;
         yy(i) = round(double(sol_k) * ii + double(sol_a));
         % a teraz pekne sprav rozdiely
@@ -368,14 +368,14 @@ if closedData(n.X,n.Y) > closedData(w.X,w.Y) % if noise is higher
 elseif closedData(n.X,n.Y) < 0.2 * (closedData(w.X,w.Y))
     % if the noise is really small - we can neglige it
     disp('Water peak is much higher than noise?')
-    for ii = (n.X + 1):(w.X - 1) % pouzi indexy radsej
+    for ii = (w.X - 1):(n.X + 1) % pouzi indexy radsej
         i = i + 1;
         yy(i) = round(double(sol_k) * ii + double(sol_a));
-        if i == w.X/2
-            dif(i) = closedData(ii,yy);
-        else
-            dif(i) = 0;
-        end
+        %if i == w.X/2
+            dif(i) = closedData(n.X,n.Y) - closedData(ii,yy(i));
+        %else
+        %    dif(i) = 0;
+        %end
     end
 else
     for ii = (n.X + 1):(w.X - 1) % pouzi indexy radsej
@@ -454,9 +454,9 @@ for i = 1:length(threed)
                 threed(i,4) = 0;
                 threed(i,5) = 0;
             end
-        end   
+        end
     else
-        if  threed(i,2) < threed(i,1) - (w.wii - (rrr + w.fii))
+        if  threed(i,2) < (threed(i,1) - (w.wii - (rrr + w.fii)))^2
             threed(i,4) = threed(i,1);
             threed(i,5) = 1;
         else
@@ -471,13 +471,12 @@ gscatter(threed(:,1),threed(:,2),threed(:,5),'rg','.','','off'), axis tight
 %% define which cluster is water and fat
 w_ind = 1; f_ind = 0;
 %% make maps with (real) 1 and 0 values threed(:,5) or with real threed(:,4)
-% make a segmented image: 
+% make a segmented image:
 if rvsb == 0 % the output are binary values
     sgmnts{1,1} = reshape(threed(:,5),ova(1,1),ova(2,1),ova(3,1));
 else
     sgmnts{1,1} = reshape(threed(:,4),ova(1,1),ova(2,1),ova(3,1));
 end
-
 %sgmnts{1,2} = reshape(threed_(:,5),ova(1,1),ova(2,1),ova(3,1)); %segmented images for fat as 1
 %% for shifted CSI, you need to shift the ratio information:
 if shft_ud < 0 || shft_ud > 0
@@ -561,6 +560,9 @@ sgmnts{2,1}(round((voxel.rm / 2) + 1 - ova(1,1) / 2):round((voxel.rm / 2) + ...
 %    ova(2,1) / 2),round((voxel.rm / 2) + 1 - ova(3,1) / 2):round((voxel.rm / 2) + ...
 %    ova(3,1) / 2)) = sgmnts{1,2}(:,:,:);
 sgmnts{3,1} = fftshift(fftn(sgmnts{2,1})); % fft of the map
+
+
+%%
 %sgmnts{3,2} = fftshift(fftn(sgmnts{2,2}));
 % imagesc(sgmnts{2,1}(:,:,61)); axis equal
 % %%
@@ -569,9 +571,13 @@ sgmnts{3,1} = fftshift(fftn(sgmnts{2,1})); % fft of the map
 sgmnts_w = sgmnts{2,1};
 save(strcat(nfo1.PatientName.FamilyName,'_sgmnts_w.mat'),'sgmnts_w');
 clear sgmnts_save;
-
+% this is undersampling the image in k-space
 sgmnts{4,1} = sgmnts{3,1}(((voxel.rm / 2) - 5):((voxel.rm / 2) + ...
     6),((voxel.rm / 2) - 5):((voxel.rm / 2) + 6),((voxel.rm / 2) - 5):((voxel.rm / 2) + 6));
+
+
+
+
 %sgmnts{4,2} = sgmnts{3,2}(((voxel.rm / 2) - 5):((voxel.rm / 2) + ...
 %    6),((voxel.rm / 2) - 5):((voxel.rm / 2) + 6),((voxel.rm / 2) - 5):((voxel.rm / 2) + 6));
 %% elliptical k-space !!!
@@ -602,34 +608,58 @@ for avg=1:avg_max
        end
    end
 end
-% %% hamming filter:
-% % generate 1D filter with CSI matrix resolution:
-% w1 = hamming(11);
-% [x,y,z] = meshgrid(-5:1:5);
-% r = sqrt(x.^2 + y.^2 + z.^2);
-% w = zeros(size(r));
-% w(r<=5) = interp1(linspace(-5,5,11),w1,r(r<=5));
-% %imagesc(w(:,:,6));
-% % fill the matrix to 12x12x12
-% w = padarray(w,[1 1 1],'post');
-% sgmnts{6,1} = sgmnts{5,1} .* w; % multiply the hamming filter with fourier transform
-% %sgmnts{6,2} = sgmnts{5,2} .* w;
-%% zero filling to 16x16x16
-%sgmnts{7,1} = abs(ifftn(padarray(sgmnts{6,1},[2 2 2])));
-sgmnts{6,1} = abs(ifftn(padarray(sgmnts{5,1},[2 2 2])));
-%sgmnts{7,2} = abs(ifftn(padarray(sgmnts{6,2},[2 2 2])));
-%% hamming filter:
-% generate 1D filter with CSI matrix resolution:
-w1 = hamming(15);
-[x,y,z] = meshgrid(-7:1:7);
+%% hamming filter first:
+%generate 1D filter with CSI matrix resolution:
+w1 = hamming(11);
+[x,y,z] = meshgrid(-5:1:5);
 r = sqrt(x.^2 + y.^2 + z.^2);
 w = zeros(size(r));
-w(r<=7) = interp1(linspace(-7,7,15),w1,r(r<=7));
+w(r<=5) = interp1(linspace(-5,5,11),w1,r(r<=5));
 %imagesc(w(:,:,6));
 % fill the matrix to 12x12x12
 w = padarray(w,[1 1 1],'post');
-sgmnts{7,1} = sgmnts{6,1} .* w; % multiply the hamming filter with fourier transform
-%sgmnts{6,2} = sgmnts{5,2} .* w;
+sgmnts{6,1} = sgmnts{5,1} .* w; % multiply the hamming filter with fourier transform
+
+%% odtialto je novy hamming
+% w1 = hamming(12);
+% [x,y,z] = meshgrid(-5.5:1:5.5);
+% r = sqrt(x.^2 + y.^2 + z.^2);
+% w = zeros(size(r));
+% w(r<=5.5) = interp1(linspace(-5.5,5.5,12),w1,r(r<=5.5));
+% %imagesc(w(:,:,6));
+% %% fill the matrix to 12x12x12
+% %w = padarray(w,[1 1 1],'post');
+% sgmnts{6,1} = sgmnts{5,1} .* w; % multiply the hamming filter with fourier transform
+%
+%
+
+% zero filling to 16x16x16
+sgmnts{7,1} = abs(ifftn(padarray(sgmnts{6,1},[2 2 2])));
+%
+
+
+%% zero filling to 16x16x16
+%  sgmnts{6,1} = abs(ifftn(padarray(sgmnts{5,1},[2 2 2])));
+%  %sgmnts{7,2} = abs(ifftn(padarray(sgmnts{6,2},[2 2 2])));
+%
+% w1 = hamming(16);
+% [x,y,z] = meshgrid(-7.5:1:7.5);
+% r = sqrt(x.^2 + y.^2 + z.^2);
+% w = zeros(size(r));
+% w(r<=7.5) = interp1(linspace(-7.5,7.5,16),w1,r(r<=7.5));
+% %%
+% % %% hamming filter:
+% % % generate 1D filter with CSI matrix resolution:
+% % w1 = hamming(15);
+% % [x,y,z] = meshgrid(-7:1:7);
+% % r = sqrt(x.^2 + y.^2 + z.^2);
+% % w = zeros(size(r));
+% % w(r<=7) = interp1(linspace(-7,7,15),w1,r(r<=7));
+% % %imagesc(w(:,:,6));
+% % % fill the matrix to 12x12x12
+% % w = padarray(w,[1 1 1],'post');
+%  sgmnts{7,1} = sgmnts{6,1} .* w; % multiply the hamming filter with fourier transform
+
 
 %% scale it!
 ttl = max(max(max(sgmnts{7,1}))); % maximum value, not sure if this is the brightess idea
@@ -690,7 +720,7 @@ mtrx2 = zeros(voxel.step_y * 2,voxel.step_x * 2,voxel.step_z * 2);
 if jmr == 1
     for i = 1:voxel.step_x * 2
         for j = 1:voxel.step_y * 2
-            for k = 1:voxel.step_z * 2
+            for k = voxel.step_z * 2:-1:1
                 aa = aa + 1;
                 mtrx2(j,i,k) = mtrx1{1,1}(aa,1);
             end
@@ -722,9 +752,14 @@ for k = 1:voxel.step_z * 2
                 disp('!!! There in enough SNR in a suspiciosly fatty voxel !!!');
                 disp(strcat('ijk= ',num2str(i),',',num2str(j),',',num2str(k)));
 
-                    density_wt_cor(j,i,k) = 0; %mtrx2(j,i,k);
-                    density(j,i,k) =  0; %mtrx2(j,i,k) / rtio(j,i,k);
 
+
+                density_wt_cor(j,i,k) = mtrx2(j,i,k); % this is not supposed to be here
+                density(j,i,k) = mtrx2(j,i,k) / rtio(j,i,k); % this is not supossed to be here
+                 % this shit should be turned normaly on !!!!! it's the
+                %
+                %density_wt_cor(j,i,k) = 0; %mtrx2(j,i,k);
+                %density(j,i,k) =  0; %mtrx2(j,i,k) / rtio(j,i,k);
             else % associate the choline and density in each and compute the choline/density ratio:
                 %density(j,i,k) = rtio(j,i,k);
                 density_wt_cor(j,i,k) = mtrx2(j,i,k);
