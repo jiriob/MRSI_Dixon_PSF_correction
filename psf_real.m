@@ -455,7 +455,7 @@ for i = 1:length(threed)
             end
         end
     else
-        if  threed(i,2) < (threed(i,1) - (w.wii - (rrr + w.fii)))^2
+        if  threed(i,2) < (threed(i,1) - (w.wii - (rrr + w.fii)))
             threed(i,4) = threed(i,1);
             threed(i,5) = 1;
         else
@@ -573,7 +573,7 @@ clear sgmnts_save;
 % this is undersampling (the opposite to zero filling) the image in k-space
 sgmnts{4,1} = sgmnts{3,1}(((voxel.rm / 2) - 5):((voxel.rm / 2) + ...
     6),((voxel.rm / 2) - 5):((voxel.rm / 2) + 6),((voxel.rm / 2) - 5):((voxel.rm / 2) + 6));
-% the smaller k-space is producing a shif in the image, therefore it has to
+%% the smaller k-space is producing a shif in the image, therefore it has to
 % be interpolated in image space to 120x120x120 and then centered in the 10
 % voxels towards the center:
 % read the images in image space!!:
@@ -610,7 +610,6 @@ for i = 1:voxel.notinterpfov_x
     kk = 1;
 end
 % go back to k-space
-%%
 sgmnts{4,1} = fftshift(fftn(obr_5));
 
 %sgmnts{4,2} = sgmnts{3,2}(((voxel.rm / 2) - 5):((voxel.rm / 2) + ...
@@ -643,67 +642,23 @@ for avg=1:avg_max
        end
    end
 end
-%% hamming filter first:
-%generate 1D filter with CSI matrix resolution:
-w1 = hamming(11);
-[x,y,z] = meshgrid(-5:1:5);
-r = sqrt(x.^2 + y.^2 + z.^2);
-w = zeros(size(r));
-w(r<=5) = interp1(linspace(-5,5,11),w1,r(r<=5));
-%imagesc(w(:,:,6));
-% fill the matrix to 12x12x12
-w = padarray(w,[1 1 1],'post');
-sgmnts{6,1} = sgmnts{5,1} .* w; % multiply the hamming filter with fourier transform
-
-% zero filling to 16x16x16
-sgmnts{7,1} = abs(ifftn(padarray(sgmnts{6,1},[2 2 2])));
-% because we acctually added now 2 more voxels, it's important to shift
-the matrix again in the other dirrection
-read the images in image space!!:
-obr_2 = abs(ifftn(sgmnts{7,1}));
-% upscale to 64x64x64:
-voxel.notinterpfov_x
-[XI,YI,ZI] = meshgrid(1:(voxel.number_y - 1)/(voxel.number_y * 6 - ...
-    1):voxel.number_y,1:(voxel.number_x - 1)/(voxel.number_x * 6 - ...
-    1):voxel.number_x,1:(voxel.number_z - 1)/(voxel.number_z * 6 - ...
-    1):voxel.number_z);
-obr_2 = ba_interp3(obr_2,XI,YI,ZI,'linear'); % 'linear' function is not
-% interpolating, but just multiplying the same value over 120 voxels
-% shift:
-% teraz musis celu maticu posunut 0.75x! smerom k noham (k prvej image)
-obr_3 = padarray(obr_2,[1 1 1],'pre');
-obr_4 = obr_3(1:(end - 1),1:(end - 1),1:(end - 1));
-obr_2 = obr_4;
-% downscale by averaging and upscale
-ii = 1; jj = 1; kk = 1;
-obr_5 = zeros(voxel.number_y,voxel.number_x,voxel.number_z);
-for i = 1:voxel.number_x
-    for j = 1:voxel.number_y
-        for k = 1:voxel.number_z
-            obr_5(j,i,k) = mean(reshape(obr_2(jj:jj + 6 - ...
-                1,ii:ii + 6 - ...
-                1,kk:kk + 6 - ...
-                1),1,[])); % averaging each 10x10x10 voxels
-            kk = kk + 6;
-        end
-        jj = jj + 6;
-        kk = 1;
-    end
-    ii = ii + 6;
-    jj = 1;
-    kk = 1;
-end
-% go back to k-space
-sgmnts{7,1} = fftshift(fftn(obr_5));
-
-
-%% zero filling first to 16x16x16
-%  sgmnts{6,1} = padarray(sgmnts{5,1},[2 2 2]);
-%  %sgmnts{7,2} = abs(ifftn(padarray(sgmnts{6,2},[2 2 2])));
+%% %% hamming filter first:
+% %generate 1D filter with CSI matrix resolution:
+% w1 = hamming(11);
+% [x,y,z] = meshgrid(-5:1:5);
+% r = sqrt(x.^2 + y.^2 + z.^2);
+% w = zeros(size(r));
+% w(r<=5) = interp1(linspace(-5,5,11),w1,r(r<=5));
+% %imagesc(w(:,:,6));
+% % fill the matrix to 12x12x12
+% w = padarray(w,[1 1 1],'post');
+% sgmnts{6,1} = sgmnts{5,1} .* w; % multiply the hamming filter with fourier transform
+% %% zero filling to 16x16x16
+% sgmnts{7,1} = padarray(sgmnts{6,1},[2 2 2]);
 % % because we acctually added now 2 more voxels, it's important to shift
 % % the matrix again in the other dirrection
 % % read the images in image space!!:
-% obr_2 = abs(ifftn(sgmnts{6,1}));
+% obr_2 = abs(ifftn(sgmnts{7,1}));
 % % upscale to 64x64x64:
 % voxel.notinterpfov_x
 % [XI,YI,ZI] = meshgrid(1:(voxel.number_y - 1)/(voxel.number_y * 6 - ...
@@ -736,8 +691,50 @@ sgmnts{7,1} = fftshift(fftn(obr_5));
 %     jj = 1;
 %     kk = 1;
 % end
-% % go back to k-space
-% sgmnts{6,1} = fftshift(fftn(obr_5));
+% % (you don't have to go back to k-space)
+% sgmnts{7,1} = obr_5;
+
+
+% zero filling first to 16x16x16
+ sgmnts{6,1} = padarray(sgmnts{5,1},[2 2 2]);
+
+% because we acctually added now 2 more voxels, it's important to shift
+% the matrix again in the other dirrection
+% read the images in image space!!:
+obr_2 = abs(ifftn(sgmnts{6,1}));
+% upscale to 64x64x64:
+[XI,YI,ZI] = meshgrid(1:(voxel.number_y - 1)/(voxel.number_y * 6 - ...
+    1):voxel.number_y,1:(voxel.number_x - 1)/(voxel.number_x * 6 - ...
+    1):voxel.number_x,1:(voxel.number_z - 1)/(voxel.number_z * 6 - ...
+    1):voxel.number_z);
+obr_2 = ba_interp3(obr_2,XI,YI,ZI,'linear'); % 'linear' function is not
+% interpolating, but just multiplying the same value over 120 voxels
+% shift:
+% teraz musis celu maticu posunut 0.75x! smerom k noham (k prvej image)
+obr_3 = padarray(obr_2,[1 1 1],'pre');
+obr_4 = obr_3(1:(end - 1),1:(end - 1),1:(end - 1));
+obr_2 = obr_4;
+% downscale by averaging and upscale
+ii = 1; jj = 1; kk = 1;
+obr_5 = zeros(voxel.number_y,voxel.number_x,voxel.number_z);
+for i = 1:voxel.number_x
+    for j = 1:voxel.number_y
+        for k = 1:voxel.number_z
+            obr_5(j,i,k) = mean(reshape(obr_2(jj:jj + 6 - ...
+                1,ii:ii + 6 - ...
+                1,kk:kk + 6 - ...
+                1),1,[])); % averaging each 10x10x10 voxels
+            kk = kk + 6;
+        end
+        jj = jj + 6;
+        kk = 1;
+    end
+    ii = ii + 6;
+    jj = 1;
+    kk = 1;
+end
+% go back to k-space
+sgmnts{6,1} = fftshift(fftn(obr_5));
 
 
 %% the old hamming filter:
