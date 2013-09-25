@@ -558,7 +558,7 @@ sgmnts{2,1}(round((voxel.rm / 2) + 1 - ova(1,1) / 2):round((voxel.rm / 2) + ...
 %    ova(1,1) / 2),round((voxel.rm / 2) + 1 - ova(2,1) / 2):round((voxel.rm / 2) + ...
 %    ova(2,1) / 2),round((voxel.rm / 2) + 1 - ova(3,1) / 2):round((voxel.rm / 2) + ...
 %    ova(3,1) / 2)) = sgmnts{1,2}(:,:,:);
-sgmnts{3,1} = fftshift(fftn(sgmnts{2,1})); % fft of the map
+sgmnts{3,1} = fftshift(fftn(ifftshift(sgmnts{2,1}))); % fft of the map
 
 
 %%
@@ -574,43 +574,43 @@ clear sgmnts_save;
 sgmnts{4,1} = sgmnts{3,1}(((voxel.rm / 2) - 5):((voxel.rm / 2) + ...
     6),((voxel.rm / 2) - 5):((voxel.rm / 2) + 6),((voxel.rm / 2) - 5):((voxel.rm / 2) + 6));
 %% the smaller k-space is producing a shif in the image, therefore it has to
-% be interpolated in image space to 120x120x120 and then centered in the 10
-% voxels towards the center:
-% read the images in image space!!:
-obr_2 = abs(ifftn(sgmnts{4,1}));
-% upscale:
-[XI,YI,ZI] = meshgrid(1:(voxel.notinterpfov_y - 1)/(voxel.FoV_y - ...
-    1):voxel.notinterpfov_y,1:(voxel.notinterpfov_x - 1)/(voxel.FoV_x - ...
-    1):voxel.notinterpfov_x,1:(voxel.notinterpfov_z - 1)/(voxel.FoV_z - ...
-    1):voxel.notinterpfov_z);
-obr_2 = ba_interp3(obr_2,XI,YI,ZI,'linear'); % 'linear' function is not
-% interpolating, but just multiplying the same value over 120 voxels
-% shift:
-% teraz musis celu maticu posunut 5x! smerom k noham (k prvej image)
-obr_3 = padarray(obr_2,[5 5 5],'post');
-obr_4 = obr_3(6:end,6:end,6:end);
-obr_2 = obr_4;
-% downscale by averaging and upscale
-ii = 1; jj = 1; kk = 1;
-obr_5 = zeros(voxel.notinterpfov_y,voxel.notinterpfov_x,voxel.notinterpfov_z);
-for i = 1:voxel.notinterpfov_x
-    for j = 1:voxel.notinterpfov_y
-        for k = 1:voxel.notinterpfov_z
-            obr_5(j,i,k) = mean(reshape(obr_2(jj:jj + voxel.FoV_y/voxel.notinterpfov_y - ...
-                1,ii:ii + voxel.FoV_x/voxel.notinterpfov_x - ...
-                1,kk:kk + voxel.FoV_z/voxel.notinterpfov_z - ...
-                1),1,[])); % averaging each 10x10x10 voxels
-            kk = kk + voxel.FoV_x / voxel.notinterpfov_x;
-        end
-        jj = jj + voxel.FoV_y / voxel.notinterpfov_y;
-        kk = 1;
-    end
-    ii = ii + voxel.FoV_z / voxel.notinterpfov_z;
-    jj = 1;
-    kk = 1;
-end
-% go back to k-space
-sgmnts{4,1} = fftshift(fftn(obr_5));
+% % be interpolated in image space to 120x120x120 and then centered in the 10
+% % voxels towards the center:
+% % read the images in image space!!:
+% obr_2 = abs(ifftn(sgmnts{4,1}));
+% % upscale:
+% [XI,YI,ZI] = meshgrid(1:(voxel.notinterpfov_y - 1)/(voxel.FoV_y - ...
+%     1):voxel.notinterpfov_y,1:(voxel.notinterpfov_x - 1)/(voxel.FoV_x - ...
+%     1):voxel.notinterpfov_x,1:(voxel.notinterpfov_z - 1)/(voxel.FoV_z - ...
+%     1):voxel.notinterpfov_z);
+% obr_2 = ba_interp3(obr_2,XI,YI,ZI,'linear'); % 'linear' function is not
+% % interpolating, but just multiplying the same value over 120 voxels
+% % shift:
+% % teraz musis celu maticu posunut 5x! smerom k noham (k prvej image)
+% obr_3 = padarray(obr_2,[5 5 5],'post');
+% obr_4 = obr_3(6:end,6:end,6:end);
+% obr_2 = obr_4;
+% % downscale by averaging and upscale
+% ii = 1; jj = 1; kk = 1;
+% obr_5 = zeros(voxel.notinterpfov_y,voxel.notinterpfov_x,voxel.notinterpfov_z);
+% for i = 1:voxel.notinterpfov_x
+%     for j = 1:voxel.notinterpfov_y
+%         for k = 1:voxel.notinterpfov_z
+%             obr_5(j,i,k) = mean(reshape(obr_2(jj:jj + voxel.FoV_y/voxel.notinterpfov_y - ...
+%                 1,ii:ii + voxel.FoV_x/voxel.notinterpfov_x - ...
+%                 1,kk:kk + voxel.FoV_z/voxel.notinterpfov_z - ...
+%                 1),1,[])); % averaging each 10x10x10 voxels
+%             kk = kk + voxel.FoV_x / voxel.notinterpfov_x;
+%         end
+%         jj = jj + voxel.FoV_y / voxel.notinterpfov_y;
+%         kk = 1;
+%     end
+%     ii = ii + voxel.FoV_z / voxel.notinterpfov_z;
+%     jj = 1;
+%     kk = 1;
+% end
+% % go back to k-space
+% sgmnts{4,1} = fftshift(fftn(obr_5));
 
 %sgmnts{4,2} = sgmnts{3,2}(((voxel.rm / 2) - 5):((voxel.rm / 2) + ...
 %    6),((voxel.rm / 2) - 5):((voxel.rm / 2) + 6),((voxel.rm / 2) - 5):((voxel.rm / 2) + 6));
@@ -698,46 +698,46 @@ end
 % zero filling first to 16x16x16
  sgmnts{6,1} = padarray(sgmnts{5,1},[2 2 2]);
 
-% because we acctually added now 2 more voxels, it's important to shift
-% the matrix again in the other dirrection
-% read the images in image space!!:
-obr_2 = abs(ifftn(sgmnts{6,1}));
-% upscale to 64x64x64:
-[XI,YI,ZI] = meshgrid(1:(voxel.number_y - 1)/(voxel.number_y * 6 - ...
-    1):voxel.number_y,1:(voxel.number_x - 1)/(voxel.number_x * 6 - ...
-    1):voxel.number_x,1:(voxel.number_z - 1)/(voxel.number_z * 6 - ...
-    1):voxel.number_z);
-obr_2 = ba_interp3(obr_2,XI,YI,ZI,'linear'); % 'linear' function is not
-% interpolating, but just multiplying the same value over 120 voxels
-% shift:
-% teraz musis celu maticu posunut 0.75x! smerom k noham (k prvej image)
-obr_3 = padarray(obr_2,[1 1 1],'pre');
-obr_4 = obr_3(1:(end - 1),1:(end - 1),1:(end - 1));
-obr_2 = obr_4;
-% downscale by averaging and upscale
-ii = 1; jj = 1; kk = 1;
-obr_5 = zeros(voxel.number_y,voxel.number_x,voxel.number_z);
-for i = 1:voxel.number_x
-    for j = 1:voxel.number_y
-        for k = 1:voxel.number_z
-            obr_5(j,i,k) = mean(reshape(obr_2(jj:jj + 6 - ...
-                1,ii:ii + 6 - ...
-                1,kk:kk + 6 - ...
-                1),1,[])); % averaging each 10x10x10 voxels
-            kk = kk + 6;
-        end
-        jj = jj + 6;
-        kk = 1;
-    end
-    ii = ii + 6;
-    jj = 1;
-    kk = 1;
-end
-% go back to k-space
-sgmnts{6,1} = fftshift(fftn(obr_5));
+% % because we acctually added now 2 more voxels, it's important to shift
+% % the matrix again in the other dirrection
+% % read the images in image space!!:
+% obr_2 = abs(ifftn(sgmnts{6,1}));
+% % upscale to 64x64x64:
+% [XI,YI,ZI] = meshgrid(1:(voxel.number_y - 1)/(voxel.number_y * 6 - ...
+%     1):voxel.number_y,1:(voxel.number_x - 1)/(voxel.number_x * 6 - ...
+%     1):voxel.number_x,1:(voxel.number_z - 1)/(voxel.number_z * 6 - ...
+%     1):voxel.number_z);
+% obr_2 = ba_interp3(obr_2,XI,YI,ZI,'linear'); % 'linear' function is not
+% % interpolating, but just multiplying the same value over 120 voxels
+% % shift:
+% % teraz musis celu maticu posunut 0.75x! smerom k noham (k prvej image)
+% obr_3 = padarray(obr_2,[1 1 1],'pre');
+% obr_4 = obr_3(1:(end - 1),1:(end - 1),1:(end - 1));
+% obr_2 = obr_4;
+% % downscale by averaging and upscale
+% ii = 1; jj = 1; kk = 1;
+% obr_5 = zeros(voxel.number_y,voxel.number_x,voxel.number_z);
+% for i = 1:voxel.number_x
+%     for j = 1:voxel.number_y
+%         for k = 1:voxel.number_z
+%             obr_5(j,i,k) = mean(reshape(obr_2(jj:jj + 6 - ...
+%                 1,ii:ii + 6 - ...
+%                 1,kk:kk + 6 - ...
+%                 1),1,[])); % averaging each 10x10x10 voxels
+%             kk = kk + 6;
+%         end
+%         jj = jj + 6;
+%         kk = 1;
+%     end
+%     ii = ii + 6;
+%     jj = 1;
+%     kk = 1;
+% end
+% % go back to k-space
+% sgmnts{6,1} = fftshift(fftn(obr_5));
 
 
-%% the old hamming filter:
+%% the hamming filter:
 % generate 1D filter with CSI matrix resolution:
 w1 = hamming(15);
 [x,y,z] = meshgrid(-7:1:7);
@@ -747,18 +747,68 @@ w(r<=7) = interp1(linspace(-7,7,15),w1,r(r<=7));
 %imagesc(w(:,:,6));
 % fill the matrix to 12x12x12
 w = padarray(w,[1 1 1],'post');
- sgmnts{7,1} = abs(ifftn(sgmnts{6,1} .* w)); % multiply the hamming filter with fourier transform
+%% because downscaled matrix obviously is making a strange shift in image space
+% fill it with zeros to 120x120x120 and then rescale it in image space to
+% 16x16x16 by averaging
+sgmnts{7,1} = (sgmnts{6,1} .* w); % multiply the hamming filter with fourier transform
+% zerofilling to full res
+sgmnts{8,1} = zeros(voxel.rm,voxel.rm,voxel.rm);
+sgmnts{8,1}(round((voxel.rm / 2) + 1 - voxel.number_y / 2):round((voxel.rm / 2) + ...
+    voxel.number_y / 2),round((voxel.rm / 2) + 1 - voxel.number_x / 2):round((voxel.rm / 2) + ...
+    voxel.number_x / 2),round((voxel.rm / 2) + 1 - voxel.number_z / 2):round((voxel.rm / 2) + ...
+    voxel.number_z / 2)) = sgmnts{7,1};
+sgmnts{8,1} = abs(real(fftshift(ifftn(ifftshift(sgmnts{8,1})))));
+% now downscale in the image space:
+[XI,YI,ZI] = meshgrid(1:(voxel.FoV_y - 1)/(voxel.number_y - ...
+    1):voxel.FoV_y,1:(voxel.FoV_x - 1)/(voxel.number_x - ...
+    1):voxel.FoV_x,1:(voxel.FoV_z - 1)/(voxel.number_z - ...
+    1):voxel.FoV_z);
+sgmnts{9,1} = ba_interp3(sgmnts{8,1},XI,YI,ZI,'nearest');
 
+%% shift the final dixon map 1/4 to the beggining of coordinates
+% obr_2 = sgmnts{7,1};
+% % upscale to 64x64x64:
+% [XI,YI,ZI] = meshgrid(1:(voxel.number_y - 1)/(voxel.number_y * 4 - ...
+%     1):voxel.number_y,1:(voxel.number_x - 1)/(voxel.number_x * 4 - ...
+%     1):voxel.number_x,1:(voxel.number_z - 1)/(voxel.number_z * 4 - ...
+%     1):voxel.number_z);
+% obr_2 = ba_interp3(obr_2,XI,YI,ZI,'linear'); % 'linear' function is not
+% % interpolating, but just multiplying the same value over 120 voxels
+% % shift:
+% %% teraz musis celu maticu posunut 0.75x! smerom k noham (k prvej image)
+% obr_3 = padarray(obr_2,[1 1 1],'post');
+% obr_4 = obr_3(2:end,2:end,2:end);
+% obr_2 = obr_4;
+% %% downscale by averaging and upscale
+% ii = 1; jj = 1; kk = 1;
+% obr_5 = zeros(voxel.number_y,voxel.number_x,voxel.number_z);
+% for i = 1:voxel.number_x
+%     for j = 1:voxel.number_y
+%         for k = 1:voxel.number_z
+%             obr_5(j,i,k) = mean(reshape(obr_2(jj:jj + 4 - ...
+%                 1,ii:ii + 4 - ...
+%                 1,kk:kk + 4 - ...
+%                 1),1,[])); % averaging each 10x10x10 voxels
+%             kk = kk + 4;
+%         end
+%         jj = jj + 4;
+%         kk = 1;
+%     end
+%     ii = ii + 4;
+%     jj = 1;
+%     kk = 1;
+% end
+% sgmnts{7,1} = obr_5;
 
 %% scale it!
-ttl = max(max(max(sgmnts{7,1}))); % maximum value, not sure if this is the brightess idea
+ttl = max(max(max(sgmnts{9,1}))); % maximum value, not sure if this is the brightess idea
 l = voxel.number_x / 2 - voxel.step_x;
 m = voxel.number_y / 2 - voxel.step_y;
 n = voxel.number_z / 2 - voxel.step_z;
 for k = 1:voxel.step_z * 2
     for i = 1:voxel.step_x * 2
         for j = 1:voxel.step_y * 2
-            sgmnts{10,1}(j,i,k) = sgmnts{7,1}(m + j,l + i,n + k) / ttl;
+            sgmnts{10,1}(j,i,k) = sgmnts{9,1}(m + j,l + i,n + k) / ttl;
         end
     end
 end
