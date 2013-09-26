@@ -172,41 +172,41 @@ end
     [XI,YI,ZI] = meshgrid(1:(floor(10000 * 1 / nfo1.PixelSpacing(1,1)) / 10000):length(imgs{1,1}(1,:,1)),...
         1:(floor(10000 * 1 / nfo1.PixelSpacing(2,1)) / 10000):length(imgs{1,1}(:,1,1)),...
         1:(floor(10000 * 1 / nfo1.SliceThickness) / 10000):length(imgs{1,1}(1,1,:)));
-    imgs{2,1} = ba_interp3(imgs{1,1},XI,YI,ZI,'nearest'); % fast interpolation to 1x1x1 mm3
-    imgs{2,2} = ba_interp3(imgs{1,2},XI,YI,ZI,'nearest'); % fast interpolation to 1x1x1 mm3
+    imgs{2,1} = ba_interp3(imgs{1,1},XI,YI,ZI,'cubic'); % fast interpolation to 1x1x1 mm3
+    imgs{2,2} = ba_interp3(imgs{1,2},XI,YI,ZI,'cubic'); % fast interpolation to 1x1x1 mm3
     [YI,XI,~] = size(imgs{2,1});
 % make the center of coordinates the centre of each axial slice: horizontaly
 if -nfo1.ImagePositionPatient(1,1) > XI -  ...
         -nfo1.ImagePositionPatient(1,1) == 1
         % add zeros to the end
-        imgs{2,1}(:,XI + 1:-round(2 * nfo1.ImagePositionPatient(1,1)),:) = 0;
-        imgs{2,2}(:,XI + 1:-round(2 * nfo1.ImagePositionPatient(1,1)),:) = 0;
+        imgs{2,1}(:,XI + 1:-fix(2 * nfo1.ImagePositionPatient(1,1)),:) = 0;
+        imgs{2,2}(:,XI + 1:-fix(2 * nfo1.ImagePositionPatient(1,1)),:) = 0;
 else
         % move image right and add zeros to the begging
-        imgs{2,1}(:,XI - -round(2 * nfo1.ImagePositionPatient(1,1)) + ...
-            1:2 * XI - -round(2 * nfo1.ImagePositionPatient(1,1)),:) = ...
+        imgs{2,1}(:,XI - -fix(2 * nfo1.ImagePositionPatient(1,1)) + ...
+            1:2 * XI - -fix(2 * nfo1.ImagePositionPatient(1,1)),:) = ...
             imgs{2,1}(:,1:XI,:);
-        imgs{2,1}(:,1:XI - -round(2 * nfo1.ImagePositionPatient(1,1)),:) = 0;
-        imgs{2,2}(:,XI - -round(2 * nfo1.ImagePositionPatient(1,1)) + ...
-            1:2 * XI - -round(2 * nfo1.ImagePositionPatient(1,1)),:) = ...
+        imgs{2,1}(:,1:XI - -fix(2 * nfo1.ImagePositionPatient(1,1)),:) = 0;
+        imgs{2,2}(:,XI - -fix(2 * nfo1.ImagePositionPatient(1,1)) + ...
+            1:2 * XI - -fix(2 * nfo1.ImagePositionPatient(1,1)),:) = ...
             imgs{2,2}(:,1:XI,:);
-        imgs{2,2}(:,1:XI - -round(2 * nfo1.ImagePositionPatient(1,1)),:) = 0;
+        imgs{2,2}(:,1:XI - -fix(2 * nfo1.ImagePositionPatient(1,1)),:) = 0;
 end
 % now, center image in vertical dimension
 if -nfo1.ImagePositionPatient(2,1) > YI - -nfo1.ImagePositionPatient(2,1) == 1
         %add zeros to the end
-        imgs{2,1}(YI + 1:-round(2 * nfo1.ImagePositionPatient(2,1)),:,:) = 0;
-        imgs{2,2}(YI + 1:-round(2 * nfo1.ImagePositionPatient(2,1)),:,:) = 0;
+        imgs{2,1}(YI + 1:-fix(2 * nfo1.ImagePositionPatient(2,1)),:,:) = 0;
+        imgs{2,2}(YI + 1:-fix(2 * nfo1.ImagePositionPatient(2,1)),:,:) = 0;
 else
         % move image down and add zeros to the begging
-        imgs{2,1}(YI - -round(2 * nfo1.ImagePositionPatient(2,1)) ...
-            + 1:2 * YI - -round(2 * nfo1.ImagePositionPatient(2,1)),:,:) = ...
+        imgs{2,1}(YI - -fix(2 * nfo1.ImagePositionPatient(2,1)) ...
+            + 1:2 * YI - -fix(2 * nfo1.ImagePositionPatient(2,1)),:,:) = ...
             imgs{2,1}(1:YI,:,:);
-        imgs{2,1}(1:YI - -round(2 * nfo1.ImagePositionPatient(2,1)),:,:) = 0;
-        imgs{2,2}(YI - -round(2 * nfo1.ImagePositionPatient(2,1)) ...
-            + 1:2 * YI - -round(2 * nfo1.ImagePositionPatient(2,1)),:,:) = ...
+        imgs{2,1}(1:YI - -fix(2 * nfo1.ImagePositionPatient(2,1)),:,:) = 0;
+        imgs{2,2}(YI - -fix(2 * nfo1.ImagePositionPatient(2,1)) ...
+            + 1:2 * YI - -fix(2 * nfo1.ImagePositionPatient(2,1)),:,:) = ...
             imgs{2,2}(1:YI,:,:);
-        imgs{2,2}(1:YI - -round(2 * nfo1.ImagePositionPatient(2,1)),:,:) = 0;
+        imgs{2,2}(1:YI - -fix(2 * nfo1.ImagePositionPatient(2,1)),:,:) = 0;
 end
 % other csi parameters:
 % determine the first slice and last slices = determine the press box transversal beginning:
@@ -230,34 +230,34 @@ voxel.angle_deg = radtodeg(voxel.angle);
 % the center point of csi in press box in rotated images has coordinates from the
 % left upper corner:
 if voxel.angle > 0.0 % clockwise
-    voxel.fov_cntr_x = voxel.fov_cntr_x + 4;
-    voxel.fov_cntr_y = voxel.fov_cntr_y + 3; % plus posunie ratio hore
+    voxel.fov_cntr_x = voxel.fov_cntr_x + 0;
+    voxel.fov_cntr_y = voxel.fov_cntr_y + 0; % plus posunie ratio hore
 elseif voxel.angle < -0.0 % anticlockwise
-    voxel.fov_cntr_x = voxel.fov_cntr_x + 3;
-    voxel.fov_cntr_y = voxel.fov_cntr_y + 4; % plus posunie ratio hore
+    voxel.fov_cntr_x = voxel.fov_cntr_x + 0;
+    voxel.fov_cntr_y = voxel.fov_cntr_y + 0; % plus posunie ratio hore
 else
-    voxel.fov_cntr_x = voxel.fov_cntr_x + 3;
-    voxel.fov_cntr_y = voxel.fov_cntr_y + 3; % plus posunie ratio hore
+    voxel.fov_cntr_x = voxel.fov_cntr_x + 0;
+    voxel.fov_cntr_y = voxel.fov_cntr_y + 0; % plus posunie ratio hore
 end
 voxel.fov_cntr_x_rttd = numel(imgs{3,1}(1,:,1)) / 2 - (-voxel.fov_cntr_x) * cos(-voxel.angle) - ...
      (-voxel.fov_cntr_y) * sin(-voxel.angle) + 0;
 voxel.fov_cntr_y_rttd = numel(imgs{3,1}(:,1,1)) / 2 - (-voxel.fov_cntr_y) * cos(-voxel.angle) + ...
      (-voxel.fov_cntr_x) * sin(-voxel.angle) + 0;
-% and width and hight:
-voxel.fov_x1 = floor(voxel.fov_cntr_x_rttd - voxel.p_fov_x / 2) - 1;
-voxel.fov_y1 = floor(voxel.fov_cntr_y_rttd - voxel.p_fov_y / 2) - 1;
+%% and width and hight:
+voxel.fov_x1 = floor(voxel.fov_cntr_x_rttd - voxel.p_fov_x / 2) + 2;
+voxel.fov_y1 = floor(voxel.fov_cntr_y_rttd - voxel.p_fov_y / 2) + 2;
 
 % read image and turn it, cut it
 for ii = 1:numel(imgs{3,1}(1,1,:))
    imgs{4,1}(:,:,ii) = imcrop(imrotate(imgs{3,1}(:,:,ii),-voxel.angle_deg,...
-       'nearest','crop'),[voxel.fov_x1 voxel.fov_y1 (voxel.p_fov_x - 1) (voxel.p_fov_y - 1)]);
+       'bicubic','crop'),[voxel.fov_x1 voxel.fov_y1 (voxel.p_fov_x - 1) (voxel.p_fov_y - 1)]);
    imgs{4,2}(:,:,ii) = imcrop(imrotate(imgs{3,2}(:,:,ii),-voxel.angle_deg,...
-       'nearest','crop'),[voxel.fov_x1 voxel.fov_y1 (voxel.p_fov_x - 1) (voxel.p_fov_y - 1)]);
+       'bicubic','crop'),[voxel.fov_x1 voxel.fov_y1 (voxel.p_fov_x - 1) (voxel.p_fov_y - 1)]);
 % rotate default pictures:
-   imgs{3,1}(:,:,ii) = imrotate(imgs{3,1}(:,:,ii),-voxel.angle_deg,...
-       'nearest','crop');
-   imgs{3,2}(:,:,ii) = imrotate(imgs{3,2}(:,:,ii),-voxel.angle_deg,...
-       'nearest','crop');
+   %imgs{3,1}(:,:,ii) = imrotate(imgs{3,1}(:,:,ii),-voxel.angle_deg,...
+   %    'bicubic','crop');
+   %imgs{3,2}(:,:,ii) = imrotate(imgs{3,2}(:,:,ii),-voxel.angle_deg,...
+   %    'bicubic','crop');
 end
 %% %%%%%%%%%%%%%%%%%%%%%%% SEGMENTATION %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -484,7 +484,7 @@ if shft_ud < 0 || shft_ud > 0
     [XI,YI,ZI] = meshgrid(1:voxel.img_s(2),...
     1:(voxel.img_s(1) - 0.95) / (voxel.img_s(1) * 10):voxel.img_s(1),...
     1:voxel.img_s(3));
-    sgmnts{1,3} = ba_interp3(sgmnts{1,1},XI,YI,ZI,'linear');
+    sgmnts{1,3} = ba_interp3(sgmnts{1,1},XI,YI,ZI,'cubic');
     %sgmnts{1,4} = ba_interp3(sgmnts{1,2},XI,YI,ZI,'linear');
     % the shift:
     % in Y direction:
@@ -507,7 +507,7 @@ if shft_ud < 0 || shft_ud > 0
     [X,Y,Z] =  meshgrid(1:voxel.img_s(2),...
     1:(voxel.img_s(1) - 0.95) / (voxel.img_s(1) * 10):voxel.img_s(1),...
     1:voxel.img_s(3));
-    sgmnts{1,1} = ba_interp3(X,Y,Z,sgmnts{1,3},XI,YI,ZI,'linear');
+    sgmnts{1,1} = ba_interp3(X,Y,Z,sgmnts{1,3},XI,YI,ZI,'cubic');
 %    sgmnts{1,2} = ba_interp3(X,Y,Z,sgmnts{1,4},XI,YI,ZI,'linear');
     clear sgmnts{1,3};
 %    clear sgmnts{1,4};
@@ -519,7 +519,7 @@ if shft_lr < 0 || shft_lr > 0
     [XI,YI,ZI] = meshgrid(1:(voxel.img_s(2) - ...
     0.95) / (voxel.img_s(2) * 10):voxel.img_s(2),1:voxel.img_s(1),...
     1:voxel.img_s(3));
-    sgmnts{1,3} = ba_interp3(sgmnts{1,1},XI,YI,ZI,'linear');
+    sgmnts{1,3} = ba_interp3(sgmnts{1,1},XI,YI,ZI,'cubic');
 %    sgmnts{1,4} = ba_interp3(sgmnts{1,2},XI,YI,ZI,'linear');
     % the shift:
     % in X direction:
@@ -542,7 +542,7 @@ if shft_lr < 0 || shft_lr > 0
     [X,Y,Z] = meshgrid(1:(voxel.img_s(2) - ...
     0.95) / (voxel.img_s(2) * 10):voxel.img_s(2),1:voxel.img_s(1),...
     1:voxel.img_s(3));
-    sgmnts{1,1} = ba_interp3(X,Y,Z,sgmnts{1,3},XI,YI,ZI,'linear');
+    sgmnts{1,1} = ba_interp3(X,Y,Z,sgmnts{1,3},XI,YI,ZI,'cubic');
 %    sgmnts{1,2} = ba_interp3(X,Y,Z,sgmnts{1,4},XI,YI,ZI,'linear');
     clear sgmnts{1,3};
 %    clear sgmnts{1,4};
@@ -758,12 +758,12 @@ sgmnts{8,1}(round((voxel.rm / 2) + 1 - voxel.number_y / 2):round((voxel.rm / 2) 
     voxel.number_x / 2),round((voxel.rm / 2) + 1 - voxel.number_z / 2):round((voxel.rm / 2) + ...
     voxel.number_z / 2)) = sgmnts{7,1};
 sgmnts{8,1} = abs(real(fftshift(ifftn(ifftshift(sgmnts{8,1})))));
-% now downscale in the image space:
+%% now downscale in the image space:
 [XI,YI,ZI] = meshgrid(1:(voxel.FoV_y - 1)/(voxel.number_y - ...
     1):voxel.FoV_y,1:(voxel.FoV_x - 1)/(voxel.number_x - ...
     1):voxel.FoV_x,1:(voxel.FoV_z - 1)/(voxel.number_z - ...
     1):voxel.FoV_z);
-sgmnts{9,1} = ba_interp3(sgmnts{8,1},XI,YI,ZI,'nearest');
+sgmnts{9,1} = ba_interp3(sgmnts{8,1},XI,YI,ZI,'cubic');
 
 %% shift the final dixon map 1/4 to the beggining of coordinates
 % obr_2 = sgmnts{7,1};
