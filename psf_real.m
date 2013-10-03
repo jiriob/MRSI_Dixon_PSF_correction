@@ -392,28 +392,36 @@ coor_min.wii_n = biny_a(coor_min.X_n,1);
 coor_min.fii_n = biny_a(coor_min.Y_n,2);
 
 
-% the a and b for the line between the smallest X number on the circle and
-% the WvsN minimum:
 %%
 rrr = sqrt((coor_min.wii - w.wii)^2 + (coor_min.fii - w.fii)^2) * faktr;
 aaa = (w.fii * coor_min.wii_n) / (rrr + coor_min.wii_n - w.wii); % this are the 'a' and 'b' from y = a + b*x (the line between water-noise minimum and the first point of the circle
 bbb = w.fii / (w.wii - rrr - coor_min.wii_n);
+aa = (coor_min.fii_n - w.fii) / (coor_min.wii_n - w.wii + rrr);
+bb = w.fii - (w.wii - rrr) * aa;
 
 delta = (w.wii - w.fii - coor_min.wii_n)^2 - 2 * (w.wii^2 + w.fii^2 - rrr^2 - 2 * coor_min.wii_n * w.wii + coor_min.wii_n^2);
 xxx = faktr * (sqrt(delta) - w.wii + w.fii + coor_min.wii_n) / 2;
 %% second equation: y = x (where x is the "minimum")
 for i = 1:length(threed)
-    if threed(i,1) < coor_min.wii_n
+    if threed(i,1) < coor_min.wii_n % for values smaller than the noise coordinates
         if coor_min.wii_n > w.wii - rrr && threed(i,2) < xxx
             % ak WvsN minimum je dalej ako najmensi Xovy bod na kruznici:
-            if threed(i,2) > coor_min.wii_n - threed(i,1)
+            if threed(i,2) > w.fii % if the threed(i,2) value is over the center of the circle
+                if (threed(i,1) - w.wii)^2 + (threed(i,2) - w.fii)^2 < rrr^2 % it's inside of the circle
+                threed(i,4) = threed(i,1);
+                threed(i,5) = 1;
+            else
+                threed(i,4) = 0;
+                threed(i,5) = 0;
+                end
+            elseif threed(i,2) > aa * threed(i,1) + bb % if threed(i,2) is below the line between the closest point of the circle and WvsN minimum
                 threed(i,4) = threed(i,1);
                 threed(i,5) = 1;
             else
                 threed(i,4) = 0; threed(i,5) = 0;
             end
         elseif coor_min.wii_n > w.wii - rrr && threed(i,2) > xxx % nakresli zvysok kruznice
-            if (threed(i,1) - w.wii)^2 + (threed(i,2) - w.fii)^2 < rrr^2% it's inside of the circle
+            if (threed(i,1) - w.wii)^2 + (threed(i,2) - w.fii)^2 < rrr^2 % it's inside of the circle
                 threed(i,4) = threed(i,1);
                 threed(i,5) = 1;
             else
