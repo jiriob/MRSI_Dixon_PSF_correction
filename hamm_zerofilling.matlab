@@ -1,4 +1,4 @@
-%% hamming filter:
+%% hamming filter first:
 % generate 1D filter with CSI matrix resolution:
 w1 = hamming(11);
 [x,y,z] = meshgrid(-5:1:5);
@@ -31,3 +31,4 @@ w(r<=7) = interp1(linspace(-7,7,15),w1,r(r<=7));
 % fill the matrix to 12x12x12
 w = padarray(w,[1 1 1],'post');
 sgmnts{7,1} = sgmnts{6,1} .* w; % multiply the hamming filter with fourier transform
+

@@ -289,23 +289,23 @@ figure(1); %plot histogram
 %caxis([0 200]);
 subplot(221);
 imagesc(hist);
-caxis([0 50]);
+caxis([0 100]);
 % filter noise in the histogram
 noiseFilter = imhmin(hist,0.5);
 %# Gaussian-filter the image:
-gaussFilter = fspecial('gaussian',[128 128],0.5);  %# Create the filter
+gaussFilter = fspecial('gaussian',[128 128],1);  %# Create the filter
 filteredData = imfilter(noiseFilter,gaussFilter);
 subplot(222);
 imagesc(filteredData);
 title('Gaussian-filtered image');
-caxis([0 30]);
+caxis([0 100]);
 % # Perform a morphological close operation:
-closeElement = strel('disk',12);  %# Create a disk-shaped structuring element
+closeElement = strel('disk',10);  %# Create a disk-shaped structuring element
 closedData = imclose(filteredData,closeElement);
 subplot(223);
 imagesc(closedData);
 title('Closed image');
-caxis([0 30]);
+caxis([0 100]);
 % find centers
 mxma = imregionalmax(closedData);
 subplot(224);
@@ -316,19 +316,19 @@ imagesc(mxma);
 w.Y = Y(w.ind);
 [f.Y,f.ind] = max(Y);
 f.X = X(f.ind);
-n.X = 1; n.Y = 1;
+n.X = 5; n.Y = 5;
 
 %% %%%%%%%%%%%%%%%%%%%%%%%%# find the "minimum" between the water and fat
 syms a k
 [sol_a, sol_k] = solve(k * w.X + a == w.Y, k * f.X + a == f.Y);
 yy = ones(size((f.X + 1):(w.X - 1)));
 i = 0;
-if closedData(f.X,f.Y) > closedData(w.X,w.Y)
+if filteredData(f.X,f.Y) > filteredData(w.X,w.Y)
     for ii = (f.X + 1):(w.X - 1) % pouzi indexy radsej
         i = i + 1;
         yy(i) = round(double(sol_k) * ii + double(sol_a));
         % a teraz pekne sprav rozdiely
-        dif(i) = closedData(f.X,f.Y) - closedData(ii,yy(i));
+        dif(i) = filteredData(f.X,f.Y) - filteredData(ii,yy(i));
     end
 else
     disp('Water peak is higher than fat?')
@@ -336,7 +336,7 @@ else
         i = i + 1;
         yy(i) = round(double(sol_k) * ii + double(sol_a));
         % a teraz pekne sprav rozdiely
-        dif(i) = closedData(w.X,w.Y) - closedData(ii,yy(i));
+        dif(i) = filteredData(w.X,w.Y) - filteredData(ii,yy(i));
     end
 end
 ii = (f.X + 1):(w.X - 1);
@@ -348,6 +348,8 @@ coor_min.Y_w = yy(coor_min.abs);
 %f.fii = biny_a(f.Y,2); % fat image intensities
 w.wii = biny_a(w.X,1);
 w.fii = biny_a(w.Y,2);
+f.wii = biny_a(f.X,1);
+f.fii = biny_a(f.Y,2);
 coor_min.wii = biny_a(coor_min.X_w,1);
 coor_min.fii = biny_a(coor_min.Y_w,2);
 % solve a equation: a circle with the center in water maximum and radius of the "minimum"
@@ -357,21 +359,21 @@ coor_min.fii = biny_a(coor_min.Y_w,2);
 [sol_a, sol_k] = solve(k * w.X + a == w.Y, k * n.X + a == n.Y);
 yy = ones(size((n.X + 1):(w.X - 1)));
 i = 0;
-if closedData(n.X,n.Y) > closedData(w.X,w.Y) % if noise is higher
+if filteredData(n.X,n.Y) > filteredData(w.X,w.Y) % if noise is higher
     for ii = (n.X + 1):(w.X - 1)
         i = i + 1;
         yy(i) = round(double(sol_k) * ii + double(sol_a));
         % a teraz pekne sprav rozdiely
-        dif(i) = closedData(n.X,n.Y) - closedData(ii,yy(i));
+        dif(i) = filteredData(n.X,n.Y) - filteredData(ii,yy(i));
     end
-elseif closedData(n.X,n.Y) < 0.2 * (closedData(w.X,w.Y))
+elseif filteredData(n.X,n.Y) < 0.1 * (filteredData(w.X,w.Y))
     % if the noise is really small - we can neglige it
     disp('Water peak is much higher than noise?')
     for ii = (w.X - 1):(n.X + 1) % pouzi indexy radsej
         i = i + 1;
         yy(i) = round(double(sol_k) * ii + double(sol_a));
         %if i == w.X/2
-            dif(i) = closedData(n.X,n.Y) - closedData(ii,yy(i));
+            dif(i) = filteredData(n.X,n.Y) - filteredData(ii,yy(i));
         %else
         %    dif(i) = 0;
         %end
@@ -381,7 +383,7 @@ else
         i = i + 1;
         yy(i) = round(double(sol_k) * ii + double(sol_a));
         % a teraz pekne sprav rozdiely
-        dif(i) = closedData(w.X,w.Y) - closedData(ii,yy(i));
+        dif(i) = filteredData(w.X,w.Y) - filteredData(ii,yy(i));
     end
 end
 ii = (n.X + 1):(w.X - 1);
@@ -392,21 +394,39 @@ coor_min.wii_n = biny_a(coor_min.X_n,1);
 coor_min.fii_n = biny_a(coor_min.Y_n,2);
 
 
+% the a and b for the line between the smallest X number on the circle and
+% the WvsN minimum:
 %%
 rrr = sqrt((coor_min.wii - w.wii)^2 + (coor_min.fii - w.fii)^2) * faktr;
 aaa = (w.fii * coor_min.wii_n) / (rrr + coor_min.wii_n - w.wii); % this are the 'a' and 'b' from y = a + b*x (the line between water-noise minimum and the first point of the circle
 bbb = w.fii / (w.wii - rrr - coor_min.wii_n);
-aa = (coor_min.fii_n - w.fii) / (coor_min.wii_n - w.wii + rrr);
-bb = w.fii - (w.wii - rrr) * aa;
+%aa = (coor_min.fii_n - w.fii) / (coor_min.wii_n - w.wii + rrr);
+aa = -1;%(w.fii - f.fii) / (w.wii - f.wii);
+%bb = w.fii - (w.wii - rrr) * aa;
+bb = coor_min.fii_n - aa * coor_min.wii_n;
+% the intersection between the circle and the line has a common point:
+x1 = (-aa*bb + aa*w.fii + w.wii - sqrt( - bb^2 + 2*w.fii*bb - 2*aa*w.wii*bb - w.fii^2 + ...
+    aa^2 * rrr^2 + rrr^2 - aa^2*w.wii^2 + 2*aa*w.fii*w.wii)) / (aa^2 + 1);
+y1 = aa * x1 + bb;
+
 
 delta = (w.wii - w.fii - coor_min.wii_n)^2 - 2 * (w.wii^2 + w.fii^2 - rrr^2 - 2 * coor_min.wii_n * w.wii + coor_min.wii_n^2);
 xxx = faktr * (sqrt(delta) - w.wii + w.fii + coor_min.wii_n) / 2;
 %% second equation: y = x (where x is the "minimum")
+% for i = 1:length(threed)
+%     if threed(i,2) * 5 + w.wii - 100 < threed(i,1)
+%         threed(i,4) = threed(i,1);
+%         threed(i,5) = 1;
+%     else
+%         threed(i,4) = 0;
+%         threed(i,5) = 0;
+%     end
+% end
 for i = 1:length(threed)
     if threed(i,1) < coor_min.wii_n % for values smaller than the noise coordinates
         if coor_min.wii_n > w.wii - rrr && threed(i,2) < xxx
             % ak WvsN minimum je dalej ako najmensi Xovy bod na kruznici:
-            if threed(i,2) > w.fii % if the threed(i,2) value is over the center of the circle
+            if threed(i,2) > y1 %w.fii % if the threed(i,2) value is over the center of the circle
                 if (threed(i,1) - w.wii)^2 + (threed(i,2) - w.fii)^2 < rrr^2 % it's inside of the circle
                 threed(i,4) = threed(i,1);
                 threed(i,5) = 1;
@@ -463,7 +483,7 @@ for i = 1:length(threed)
             end
         end
     else
-        if  threed(i,2) < (threed(i,1) - (w.wii - (rrr + w.fii)))
+        if  threed(i,2) < threed(i,1) - (w.wii - (rrr + w.fii))
             threed(i,4) = threed(i,1);
             threed(i,5) = 1;
         else
@@ -566,8 +586,8 @@ sgmnts{2,1}(round((voxel.rm / 2) + 1 - ova(1,1) / 2):round((voxel.rm / 2) + ...
 %    ova(1,1) / 2),round((voxel.rm / 2) + 1 - ova(2,1) / 2):round((voxel.rm / 2) + ...
 %    ova(2,1) / 2),round((voxel.rm / 2) + 1 - ova(3,1) / 2):round((voxel.rm / 2) + ...
 %    ova(3,1) / 2)) = sgmnts{1,2}(:,:,:);
+%% go to k-space
 sgmnts{3,1} = fftshift(fftn(ifftshift(sgmnts{2,1}))); % fft of the map
-
 
 %%
 %sgmnts{3,2} = fftshift(fftn(sgmnts{2,2}));
@@ -581,47 +601,7 @@ clear sgmnts_save;
 % this is undersampling (the opposite to zero filling) the image in k-space
 sgmnts{4,1} = sgmnts{3,1}(((voxel.rm / 2) - 5):((voxel.rm / 2) + ...
     6),((voxel.rm / 2) - 5):((voxel.rm / 2) + 6),((voxel.rm / 2) - 5):((voxel.rm / 2) + 6));
-%% the smaller k-space is producing a shif in the image, therefore it has to
-% % be interpolated in image space to 120x120x120 and then centered in the 10
-% % voxels towards the center:
-% % read the images in image space!!:
-% obr_2 = abs(ifftn(sgmnts{4,1}));
-% % upscale:
-% [XI,YI,ZI] = meshgrid(1:(voxel.notinterpfov_y - 1)/(voxel.FoV_y - ...
-%     1):voxel.notinterpfov_y,1:(voxel.notinterpfov_x - 1)/(voxel.FoV_x - ...
-%     1):voxel.notinterpfov_x,1:(voxel.notinterpfov_z - 1)/(voxel.FoV_z - ...
-%     1):voxel.notinterpfov_z);
-% obr_2 = ba_interp3(obr_2,XI,YI,ZI,'linear'); % 'linear' function is not
-% % interpolating, but just multiplying the same value over 120 voxels
-% % shift:
-% % teraz musis celu maticu posunut 5x! smerom k noham (k prvej image)
-% obr_3 = padarray(obr_2,[5 5 5],'post');
-% obr_4 = obr_3(6:end,6:end,6:end);
-% obr_2 = obr_4;
-% % downscale by averaging and upscale
-% ii = 1; jj = 1; kk = 1;
-% obr_5 = zeros(voxel.notinterpfov_y,voxel.notinterpfov_x,voxel.notinterpfov_z);
-% for i = 1:voxel.notinterpfov_x
-%     for j = 1:voxel.notinterpfov_y
-%         for k = 1:voxel.notinterpfov_z
-%             obr_5(j,i,k) = mean(reshape(obr_2(jj:jj + voxel.FoV_y/voxel.notinterpfov_y - ...
-%                 1,ii:ii + voxel.FoV_x/voxel.notinterpfov_x - ...
-%                 1,kk:kk + voxel.FoV_z/voxel.notinterpfov_z - ...
-%                 1),1,[])); % averaging each 10x10x10 voxels
-%             kk = kk + voxel.FoV_x / voxel.notinterpfov_x;
-%         end
-%         jj = jj + voxel.FoV_y / voxel.notinterpfov_y;
-%         kk = 1;
-%     end
-%     ii = ii + voxel.FoV_z / voxel.notinterpfov_z;
-%     jj = 1;
-%     kk = 1;
-% end
-% % go back to k-space
-% sgmnts{4,1} = fftshift(fftn(obr_5));
 
-%sgmnts{4,2} = sgmnts{3,2}(((voxel.rm / 2) - 5):((voxel.rm / 2) + ...
-%    6),((voxel.rm / 2) - 5):((voxel.rm / 2) + 6),((voxel.rm / 2) - 5):((voxel.rm / 2) + 6));
 %% elliptical k-space !!!
 sgmnts{5,1} = sgmnts{4,1};
 %sgmnts{5,2} = sgmnts{4,2};
@@ -650,163 +630,27 @@ for avg=1:avg_max
        end
    end
 end
-%% %% hamming filter first:
-% %generate 1D filter with CSI matrix resolution:
-% w1 = hamming(11);
-% [x,y,z] = meshgrid(-5:1:5);
-% r = sqrt(x.^2 + y.^2 + z.^2);
-% w = zeros(size(r));
-% w(r<=5) = interp1(linspace(-5,5,11),w1,r(r<=5));
-% %imagesc(w(:,:,6));
-% % fill the matrix to 12x12x12
-% w = padarray(w,[1 1 1],'post');
-% sgmnts{6,1} = sgmnts{5,1} .* w; % multiply the hamming filter with fourier transform
-% %% zero filling to 16x16x16
-% sgmnts{7,1} = padarray(sgmnts{6,1},[2 2 2]);
-% % because we acctually added now 2 more voxels, it's important to shift
-% % the matrix again in the other dirrection
-% % read the images in image space!!:
-% obr_2 = abs(ifftn(sgmnts{7,1}));
-% % upscale to 64x64x64:
-% voxel.notinterpfov_x
-% [XI,YI,ZI] = meshgrid(1:(voxel.number_y - 1)/(voxel.number_y * 6 - ...
-%     1):voxel.number_y,1:(voxel.number_x - 1)/(voxel.number_x * 6 - ...
-%     1):voxel.number_x,1:(voxel.number_z - 1)/(voxel.number_z * 6 - ...
-%     1):voxel.number_z);
-% obr_2 = ba_interp3(obr_2,XI,YI,ZI,'linear'); % 'linear' function is not
-% % interpolating, but just multiplying the same value over 120 voxels
-% % shift:
-% % teraz musis celu maticu posunut 0.75x! smerom k noham (k prvej image)
-% obr_3 = padarray(obr_2,[1 1 1],'pre');
-% obr_4 = obr_3(1:(end - 1),1:(end - 1),1:(end - 1));
-% obr_2 = obr_4;
-% % downscale by averaging and upscale
-% ii = 1; jj = 1; kk = 1;
-% obr_5 = zeros(voxel.number_y,voxel.number_x,voxel.number_z);
-% for i = 1:voxel.number_x
-%     for j = 1:voxel.number_y
-%         for k = 1:voxel.number_z
-%             obr_5(j,i,k) = mean(reshape(obr_2(jj:jj + 6 - ...
-%                 1,ii:ii + 6 - ...
-%                 1,kk:kk + 6 - ...
-%                 1),1,[])); % averaging each 10x10x10 voxels
-%             kk = kk + 6;
-%         end
-%         jj = jj + 6;
-%         kk = 1;
-%     end
-%     ii = ii + 6;
-%     jj = 1;
-%     kk = 1;
-% end
-% % (you don't have to go back to k-space)
-% sgmnts{7,1} = obr_5;
+%% hamming filter first:
+ %generate 1D filter with CSI matrix resolution:
+ w1 = hamming(11);
+ [x,y,z] = meshgrid(-5:1:5);
+ r = sqrt(x.^2 + y.^2 + z.^2);
+ w = zeros(size(r));
+ w(r<=5) = interp1(linspace(-5,5,11),w1,r(r<=5));
+ %imagesc(w(:,:,6));
+ % fill the matrix to 12x12x12
+ w = padarray(w,[1 1 1],'post');
+ sgmnts{6,1} = sgmnts{5,1} .* w; % multiply the hamming filter with fourier transform
 
+% sgmnts{6,1} = sgmnts{5,1};
 
-% zero filling first to 16x16x16
- sgmnts{6,1} = padarray(sgmnts{5,1},[2 2 2]);
-
-% % because we acctually added now 2 more voxels, it's important to shift
-% % the matrix again in the other dirrection
-% % read the images in image space!!:
-% obr_2 = abs(ifftn(sgmnts{6,1}));
-% % upscale to 64x64x64:
-% [XI,YI,ZI] = meshgrid(1:(voxel.number_y - 1)/(voxel.number_y * 6 - ...
-%     1):voxel.number_y,1:(voxel.number_x - 1)/(voxel.number_x * 6 - ...
-%     1):voxel.number_x,1:(voxel.number_z - 1)/(voxel.number_z * 6 - ...
-%     1):voxel.number_z);
-% obr_2 = ba_interp3(obr_2,XI,YI,ZI,'linear'); % 'linear' function is not
-% % interpolating, but just multiplying the same value over 120 voxels
-% % shift:
-% % teraz musis celu maticu posunut 0.75x! smerom k noham (k prvej image)
-% obr_3 = padarray(obr_2,[1 1 1],'pre');
-% obr_4 = obr_3(1:(end - 1),1:(end - 1),1:(end - 1));
-% obr_2 = obr_4;
-% % downscale by averaging and upscale
-% ii = 1; jj = 1; kk = 1;
-% obr_5 = zeros(voxel.number_y,voxel.number_x,voxel.number_z);
-% for i = 1:voxel.number_x
-%     for j = 1:voxel.number_y
-%         for k = 1:voxel.number_z
-%             obr_5(j,i,k) = mean(reshape(obr_2(jj:jj + 6 - ...
-%                 1,ii:ii + 6 - ...
-%                 1,kk:kk + 6 - ...
-%                 1),1,[])); % averaging each 10x10x10 voxels
-%             kk = kk + 6;
-%         end
-%         jj = jj + 6;
-%         kk = 1;
-%     end
-%     ii = ii + 6;
-%     jj = 1;
-%     kk = 1;
-% end
-% % go back to k-space
-% sgmnts{6,1} = fftshift(fftn(obr_5));
-
-
-%% the hamming filter:
-% generate 1D filter with CSI matrix resolution:
-w1 = hamming(15);
-[x,y,z] = meshgrid(-7:1:7);
-r = sqrt(x.^2 + y.^2 + z.^2);
-w = zeros(size(r));
-w(r<=7) = interp1(linspace(-7,7,15),w1,r(r<=7));
-%imagesc(w(:,:,6));
-% fill the matrix to 12x12x12
-w = padarray(w,[1 1 1],'post');
-%% because downscaled matrix obviously is making a strange shift in image space
-% fill it with zeros to 120x120x120 and then rescale it in image space to
-% 16x16x16 by averaging
-sgmnts{7,1} = (sgmnts{6,1} .* w); % multiply the hamming filter with fourier transform
-% zerofilling to full res
-sgmnts{8,1} = zeros(voxel.rm,voxel.rm,voxel.rm);
-sgmnts{8,1}(round((voxel.rm / 2) + 1 - voxel.number_y / 2):round((voxel.rm / 2) + ...
-    voxel.number_y / 2),round((voxel.rm / 2) + 1 - voxel.number_x / 2):round((voxel.rm / 2) + ...
-    voxel.number_x / 2),round((voxel.rm / 2) + 1 - voxel.number_z / 2):round((voxel.rm / 2) + ...
-    voxel.number_z / 2)) = sgmnts{7,1};
-sgmnts{8,1} = abs(real(fftshift(ifftn(ifftshift(sgmnts{8,1})))));
-%% now downscale in the image space:
-[XI,YI,ZI] = meshgrid(1:(voxel.FoV_y - 1)/(voxel.number_y - ...
-    1):voxel.FoV_y,1:(voxel.FoV_x - 1)/(voxel.number_x - ...
-    1):voxel.FoV_x,1:(voxel.FoV_z - 1)/(voxel.number_z - ...
-    1):voxel.FoV_z);
-sgmnts{9,1} = ba_interp3(sgmnts{8,1},XI,YI,ZI,'cubic');
-
-%% shift the final dixon map 1/4 to the beggining of coordinates
-% obr_2 = sgmnts{7,1};
-% % upscale to 64x64x64:
-% [XI,YI,ZI] = meshgrid(1:(voxel.number_y - 1)/(voxel.number_y * 4 - ...
-%     1):voxel.number_y,1:(voxel.number_x - 1)/(voxel.number_x * 4 - ...
-%     1):voxel.number_x,1:(voxel.number_z - 1)/(voxel.number_z * 4 - ...
-%     1):voxel.number_z);
-% obr_2 = ba_interp3(obr_2,XI,YI,ZI,'linear'); % 'linear' function is not
-% % interpolating, but just multiplying the same value over 120 voxels
-% % shift:
-% %% teraz musis celu maticu posunut 0.75x! smerom k noham (k prvej image)
-% obr_3 = padarray(obr_2,[1 1 1],'post');
-% obr_4 = obr_3(2:end,2:end,2:end);
-% obr_2 = obr_4;
-% %% downscale by averaging and upscale
-% ii = 1; jj = 1; kk = 1;
-% obr_5 = zeros(voxel.number_y,voxel.number_x,voxel.number_z);
-% for i = 1:voxel.number_x
-%     for j = 1:voxel.number_y
-%         for k = 1:voxel.number_z
-%             obr_5(j,i,k) = mean(reshape(obr_2(jj:jj + 4 - ...
-%                 1,ii:ii + 4 - ...
-%                 1,kk:kk + 4 - ...
-%                 1),1,[])); % averaging each 10x10x10 voxels
-%             kk = kk + 4;
-%         end
-%         jj = jj + 4;
-%         kk = 1;
-%     end
-%     ii = ii + 4;
-%     jj = 1;
-%     kk = 1;
-% end
-% sgmnts{7,1} = obr_5;
+%% zero filling to 16x16x16
+sgmnts{7,1} = padarray(sgmnts{6,1},[2 2 2]);
+% final map:
+sgmnts{8,1} = abs(fftshift(ifftn(ifftshift(sgmnts{8,1}))));
+% half-voxel shift because of stupid fourier transform not working
+% properly,)
+sgmnts{9,1} = FourierShift3D(sgmnts{8,1},[-0.5 -0.5 -0.5]);
 
 %% scale it!
 ttl = max(max(max(sgmnts{9,1}))); % maximum value, not sure if this is the brightess idea
