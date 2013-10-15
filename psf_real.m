@@ -16,6 +16,7 @@ faktr = 1;
 % shft_lr: for shifted CSI: left -0.% right +0.%
 % SNR_filter: change this value to 0.1 if you want 10% of SNR to be filter (for
 %    phantoms) and to 0.2 (for in vivo data)
+% rvsb = 1 for real, 0 for binary dixon image segmentation
 
 % the output is maximal, mean value of all SNRs of Cho and a table
 %   with all SNRs in one row, all saved in txt files in Spec directory
