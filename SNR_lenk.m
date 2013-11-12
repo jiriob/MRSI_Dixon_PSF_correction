@@ -4,20 +4,20 @@
 function [] = SNR_lenk(directory, cho_ppm, bdwtd, trnct, control) %, CSI_shft_ud, CSI_shft_lr)
 
 % !!!!!!!!!!!!!!!!!! readme !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-% for working you need my other function called read_ascconv_lenk.m 
+% for working you need my other function called read_ascconv_lenk.m
 %   for reading parameters from the dicom
-% directory = '~/Patient_name' - where is a directory called "Spec" with 
+% directory = '~/Patient_name' - where is a directory called "Spec" with
 %   a dicom 3D CSI file
 % cho_ppm = 3.2 - exact position of Choline peak if the spectrum is set
 %   to begin at 8.76 ppm and ends at 0.64, with 1000 Hz bandwidth
 % bdwtd = 50 - bandwidth of the peak
 % trnct = number of points to truncate at the end of FID
-% control = 1 - at first you need to control if the baseline correction 
+% control = 1 - at first you need to control if the baseline correction
 %   is working properly and everything is set all right
 % shft_ud: for shifted CSI: up -0.% down +0.%
 % shft_lr: for shifted CSI: left -0.% right +0.%
 
-% the output is maximal, mean value of all SNRs of Cho and a table 
+% the output is maximal, mean value of all SNRs of Cho and a table
 %   with all SNRs in one row, all saved in txt files in Spec directory
 
 % !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -34,7 +34,7 @@ press_big = 0; % choose if you want more voxel (even that no totally inside the 
 snr.noise = 7.4; % Aus diesem Bereich wird das Rausch Siganl genommen +0.5 bis -0.5
 % Anfangs und Endewert fuer die ppm Skala eintragen
 anfang = 8.76; % Anfang der ppm Skala 8.76 normally
-ende = 0.64; % Ende der ppm Skala 0.64 
+ende = 0.64; % Ende der ppm Skala 0.64
 % truncate, replace the last few points in fid with 0s:
 
 % read the .txt header from spectroscopic file made of the text part
@@ -61,11 +61,11 @@ for k = length(spect):-1:1
     points = strfind(strg,'.');
     last_point = max(points);
     filetype_end = (strg(last_point:end));
-    end_IMA=strcmp(filetype_end,'.IMA');    
+    end_IMA=strcmp(filetype_end,'.IMA');
     if end_IMA == 0;
         spect(k) = [];
         continue
-    end    
+    end
 end
 voxel = read_ascconv_lenk(slices(1).name); % read parrameter from spectroscopy dicom
 
@@ -156,7 +156,7 @@ bbox.slc_end = SLC / 2 + voxel.step_z;
 %             bbox.row_end = bbox.row_end - 1;
 %         end
 %     end
-% end                                 
+% end
 
 %% Einlesen der Daten
 csi.file_in = strcat(spect(1,1).name); %Pfad immer an die Datei anpassen
@@ -179,7 +179,7 @@ for z = 1:SLC
     for y = 1:COL
         for x = 1:ROW
             o = o + 1;
-            csi.mat_cmplx(x,y,z,:) = csi.complex(o * vecSize + 1:(o + 1) * vecSize);	
+            csi.mat_cmplx(x,y,z,:) = csi.complex(o * vecSize + 1:(o + 1) * vecSize);
             csi.mat_rl(x,y,z,:) = csi.real(o * vecSize + 1:(o + 1) * vecSize);
         end
     end
@@ -211,7 +211,7 @@ for xx = 1:vecSize % define the values for baseline correction
     if round(100 * real(tabulk(xx,2))) == round(snr.cho * 100)
         r_sd = real(tabulk(xx - round(bdwtd / 2),1)); % right minimum next to choline peak
         l_sd = real(tabulk(xx + round(bdwtd / 2),1)); % left minimum next to Cho peak
-        
+
         break
     end
 end
@@ -259,7 +259,7 @@ for z = bbox.slc_start:bbox.slc_end
                     r_sd - 14,r_sd - 7,r_sd - 3,r_sd,l_sd,l_sd + 3,l_sd + 7,l_sd + 14,l_sd + 21,...
                     l_sd + 28,970],5,'spline');
             end
-                 
+
             % ppm scale + values from X
             test_snr = [Vecsize,F_col,X];
             yy = 0;
@@ -300,7 +300,7 @@ for z = bbox.slc_start:bbox.slc_end
             SNR.main = (ima) / (ims * 2);
             %ims = abs(std(snr.min(:)));
             %SNR.main = (ima) / (ims);
-            
+
             if diff_ > 10000
                 SNR.main = 1;
             end
@@ -310,12 +310,12 @@ for z = bbox.slc_start:bbox.slc_end
             SNR.main;
             SNR.mid = SNR.mid + SNR.main;
             SNR.tab(b,a,c) = SNR.main;
-            
+
             % Schreiben der Daten in ein TXT File
 %             path = sprintf('Output_x%i_y%i_z%i.txt',m,l,k);
 %             fid_write = fopen(path,'w');
 %             %fprintf(fid_write, '%14.5e\n',X );
-%             
+%
 %             for x = 1:vecSize
 %                 fprintf(fid,'%d\t%d\n',real(X(x,1)),imag(X(x,1)));
 %                 x = x + 1;
@@ -387,5 +387,5 @@ fclose(fid_write);
 
 dlmwrite('Output_choSNR_w_coor.txt', SNR.w_coor, 'delimiter', '\t', ...
          'precision', 6);
- 
+
 toc

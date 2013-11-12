@@ -3,18 +3,18 @@
 function [signal3D] = psf_pics(directory, no_cor, fctr, CSI_shft_ud, CSI_shft_lr)
 
 % !!!!!!!!!!!!!!!!!! readme !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-% for working you need my other function called read_ascconv_lenk.m 
+% for working you need my other function called read_ascconv_lenk.m
 %   for reading parameters from the dicom
-%   and you need a txt file with a set of SNR to evaluate, made with 
+%   and you need a txt file with a set of SNR to evaluate, made with
 %   my other function called SNR_lenk.m
-% directory = '~/Patient_name' - where is a directory called "Spec" with 
+% directory = '~/Patient_name' - where is a directory called "Spec" with
 %   a dicom 3D CSI file
 % fctr = 2 for patients, 4 for phantoms with 2 times higher resolution in CSI
 % no_cor = 0 for corrected maps, 1 for initial (not corrected) maps, 2 for ratio
 
- 
 
-% the output is maximal, mean value of all SNRs of Cho and a table 
+
+% the output is maximal, mean value of all SNRs of Cho and a table
 %   with all SNRs in one row, all saved in txt files in Spec directory
 
 % !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -63,7 +63,7 @@ slices = cell2struct(Acell, Afields, 1);
 nfo1 = dicominfo(slices(1).name);
 %[signal3D,sgmnts,voxel] = psf(slices(1).name);
 
-%load(strcat(nfo1.PatientName.FamilyName,'_sgmnts_w.mat')); % load the segmented water data 
+%load(strcat(nfo1.PatientName.FamilyName,'_sgmnts_w.mat')); % load the segmented water data
 load(strcat(nfo1.PatientName.FamilyName,'_voxel.mat'));
 load(strcat(nfo1.PatientName.FamilyName,'_density.mat'));
 load(strcat(nfo1.PatientName.FamilyName,'_imgs_w.mat'));
@@ -138,12 +138,12 @@ jet1 = colormap(jet);
 jet2 = interp2(X,Y,jet1,XI,YI);
 
 %% draw 8 slices at once:
-figure('units','normalized','position',[.05 .1 .9 .9])
-for aa = 2:c.pix_depth + 1
+figure('units','normalized','position',[.05 .1 .95 .95])
+for aa = 1:c.pix_depth
     %subplot('Position',[(-0.0 ) 0.05 (2.5 / c.pix_depth) (2.5 / c.pix_depth)]);
-    subaxis(round(c.pix_depth / 3 - 1),4 ,aa - 1, 'Spacing', 0, 'Padding', 0, 'Margin', 0);
-    subimage(imgs_w(:,:,fix((aa - 1) * (c.cut_depth * fctr) / (c.pix_depth + 1)) + 5),cmp1);
-    pic = signal3D_(:,:,fix((aa - 1) * (c.cut_depth * fctr) / (c.pix_depth + 1)) - 0);
+    subaxis(round(c.pix_depth / 3) + 1,5 ,aa, 'Spacing', 0, 'Padding', 0, 'Margin', 0);
+    subimage(imgs_w(:,:,fix((aa) * (c.cut_depth * fctr) / (c.pix_depth + 1)) + 5),cmp1);
+    pic = signal3D_(:,:,fix((aa) * (c.cut_depth * fctr) / (c.pix_depth + 1)) - 0);
     hold on
     if g_test < 10
         hh2 = image((voxel.fov_x1 - 3) * fctr,(voxel.fov_y1 - 3) * fctr,pic .* 100,...
