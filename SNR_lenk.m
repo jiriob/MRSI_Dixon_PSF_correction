@@ -1,5 +1,5 @@
 % minarikova.lenka@gmail.com
-% v 1.0
+% v 1.1
 
 function [] = SNR_lenk(directory, cho_ppm, bdwtd, trnct, control) %, CSI_shft_ud, CSI_shft_lr)
 
@@ -109,55 +109,6 @@ bbox.row_end = ROW / 2 + voxel.step_x; %bis
 bbox.slc_start = SLC / 2 - voxel.step_z + 1; %Diese beiden Werte muessen immer gleich sein
 bbox.slc_end = SLC / 2 + voxel.step_z;
 
-% if CSI_shft_ud < 0 % if there was shift in up/down
-%     if abs(voxel.fov_cntr_y + round(CSI_shft_ud * voxel.FoV_y / voxel.notinterpfov_y) - ...
-%         voxel.step_y * voxel.size_y) > abs(voxel.fov_cntr_y - voxel.p_fov_y / 2)
-%         if abs(voxel.fov_cntr_y + round(CSI_shft_ud * voxel.FoV_y / voxel.notinterpfov_y) - ...
-%         voxel.step_y * voxel.size_y) - abs(voxel.fov_cntr_y - voxel.p_fov_y / 2) > voxel.size_y
-%             disp(strcat('The shift is bigger than 1 voxel, I cant do it right'));
-%         else % shift the voxels number:
-%             bbox.col_start = bbox.col_start + 1;
-%             bbox.col_end = bbox.col_end + 1;
-%         end
-%     end
-% end
-% if CSI_shft_ud > 0
-%     if abs(voxel.fov_cntr_y + round(CSI_shft_ud * voxel.FoV_y / voxel.notinterpfov_y) - ...
-%         voxel.step_y * voxel.size_y) < abs(voxel.fov_cntr_y + voxel.p_fov_y / 2)
-%         if abs(voxel.fov_cntr_y + round(CSI_shft_ud * voxel.FoV_y / voxel.notinterpfov_y) - ...
-%         voxel.step_y * voxel.size_y) - abs(voxel.fov_cntr_y + voxel.p_fov_y / 2) > voxel.size_y
-%             disp(strcat('The shift is bigger than 1 voxel, I cant do it right'));
-%         else
-%             bbox.col_start = bbox.col_start - 1;
-%             bbox.col_end = bbox.col_end - 1;
-%         end
-%     end
-% end
-% if CSI_shft_lr < 0 % if there was shift in up/down
-%     if abs(voxel.fov_cntr_x + round(CSI_shft_lr * voxel.FoV_x / voxel.notinterpfov_x) - ...
-%         voxel.step_x * voxel.size_x) > abs(voxel.fov_cntr_x - voxel.p_fov_x / 2)
-%         if abs(voxel.fov_cntr_x + round(CSI_shft_lr * voxel.FoV_x / voxel.notinterpfov_x) - ...
-%         voxel.step_x * voxel.size_x) - abs(voxel.fov_cntr_x - voxel.p_fov_x / 2) > voxel.size_x
-%             disp(strcat('The shift is bigger than 1 voxel, I cant do it right'));
-%         else % shift the voxels number:
-%             bbox.row_start = bbox.row_start + 1;
-%             bbox.row_end = bbox.row_end + 1;
-%         end
-%     end
-% end
-% if CSI_shft_lr > 0
-%     if abs(voxel.fov_cntr_x + round(CSI_shft_lr * voxel.FoV_x / voxel.notinterpfov_x) - ...
-%         voxel.step_x * voxel.size_x) < abs(voxel.fov_cntr_x + voxel.p_fov_x / 2)
-%         if abs(voxel.fov_cntr_x + round(CSI_shft_lr * voxel.FoV_x / voxel.notinterpfov_x) - ...
-%         voxel.step_x * voxel.size_x) - abs(voxel.fov_cntr_x + voxel.p_fov_x / 2) > voxel.size_x
-%             disp(strcat('The shift is bigger than 1 voxel, I cant do it right'));
-%         else
-%             bbox.row_start = bbox.row_start - 1;
-%             bbox.row_end = bbox.row_end - 1;
-%         end
-%     end
-% end
-
 %% Einlesen der Daten
 csi.file_in = strcat(spect(1,1).name); %Pfad immer an die Datei anpassen
 
@@ -232,7 +183,7 @@ for z = bbox.slc_start:bbox.slc_end
             % 1 Voxel aus der 4D Matrix auslesen
             csi.rshpd_cmplx = reshape(csi.mat_cmplx(x,y,z,:),[],1);
             % FFT eines Voxels
-            x1 = csi.rshpd_cmplx;
+            %x1 = csi.rshpd_cmplx;
             x2 = csi.rshpd_cmplx(1:vecSize / 2 - trnct,1);
             rest1 = zeros(trnct,1);
             x1 = [x2;rest1];
@@ -240,24 +191,26 @@ for z = bbox.slc_start:bbox.slc_end
             % ff = ff';
             % x3 = x1.*ff;
             N = vecSize;
-            % X = fft(x3,N);
             X = fft(x1,N);
             X = real(fftshift(X));
-            Xnixfit = X;
-            diff_ = var([X(r_sd - 28:r_sd);X(l_sd:l_sd + 28)]); % variance between two means of points at the edge of peak
-
+            
+            SNR.vynimka = 1;
+            if abs(X(l_sd) - X(r_sd)) > 15 % filter big difference in the baseline
+                SNR.vynimka = 0;
+            end
+            
             % Baseline FIT !!!!!!
             if control == 1
                 disp(SNR.main);
-                X = bf(X,[16,32,50,80,110,140,170,200,230,260,290,320,350,r_sd - 28,r_sd - 21,...
-                    r_sd - 14,r_sd - 7,r_sd - 3,r_sd,l_sd,l_sd + 3,l_sd + 7,l_sd + 14,l_sd + 21,...
-                    l_sd + 28,970],5,'spline','confirm');
+                X = bf(X,[16,32,50,80,110,140,170,200,230,260,290,320,350,...
+                    r_sd - 30,r_sd - 15,r_sd - 10,r_sd - 5,r_sd - 2,r_sd,...
+                    l_sd,l_sd - 2,l_sd + 5,l_sd + 10,l_sd + 15,l_sd + 30,970],7,'cubic','confirm');
                 plot(F,X);
                 set(gca,'XDir','reverse');
             else
-                X = bf(X,[16,32,50,80,110,140,170,200,230,260,290,320,350,r_sd - 28,r_sd - 21,...
-                    r_sd - 14,r_sd - 7,r_sd - 3,r_sd,l_sd,l_sd + 3,l_sd + 7,l_sd + 14,l_sd + 21,...
-                    l_sd + 28,970],5,'spline');
+                X = bf(X,[16,32,50,80,110,140,170,200,230,260,290,320,350,...
+                    r_sd - 30,r_sd - 15,r_sd - 10,r_sd - 5,r_sd - 2,r_sd,...
+                    l_sd,l_sd - 2,l_sd + 5,l_sd + 10,l_sd + 15,l_sd + 30,970],7,'cubic');
             end
 
             % ppm scale + values from X
@@ -269,7 +222,7 @@ for z = bbox.slc_start:bbox.slc_end
             snr.max = 0;
             snr.base = 0;
             for xx = 1:vecSize
-                snr.schleife = test_snr(xx,:,:);
+                snr.schleife = test_snr(xx,:);
                 ppm_wert = snr.schleife(:,2);
                 if ppm_wert < snr.noise + 0.5
                     if ppm_wert > snr.noise - 0.5
@@ -283,8 +236,8 @@ for z = bbox.slc_start:bbox.slc_end
 %                         snr.base(w) = real(snr.schleife(:,3));
 %                     end
 %                 end
-                if ppm_wert < snr.cho + 0.15
-                    if ppm_wert >snr.cho - 0.15
+                if ppm_wert < snr.cho + 0.3
+                    if ppm_wert >snr.cho - 0.3
                         zz = zz + 1;
                         snr.max(zz) = real(snr.schleife(:,3));
                     end
@@ -300,14 +253,13 @@ for z = bbox.slc_start:bbox.slc_end
             SNR.main = (ima) / (ims * 2);
             %ims = abs(std(snr.min(:)));
             %SNR.main = (ima) / (ims);
-
-            if diff_ > 10000
-                SNR.main = 1;
-            end
             if SNR.main < 2
                 SNR.main = 1;
             end
             SNR.main;
+            if SNR.vynimka == 0 % this is for big difference in the baseline
+                SNR.main = 0;
+            end
             SNR.mid = SNR.mid + SNR.main;
             SNR.tab(b,a,c) = SNR.main;
 
@@ -341,24 +293,8 @@ for k = 1:c.pix_depth
     for j = 1:c.pix_width
         for i = 1:c.pix_height
             ooo = ooo + 1;
-%            if abs(voxel.fov_cntr_x + round(CSI_shft_lr * voxel.FoV_x / voxel.notinterpfov_x) - ...
-%        voxel.step_x * voxel.size_x) > abs(voxel.fov_cntr_x - voxel.p_fov_x / 2)
-%                SNR.w_coor(ooo,1) = i + (voxel.number_x / 2 - voxel.step_x) + 1;
-%            elseif abs(voxel.fov_cntr_x + round(CSI_shft_lr * voxel.FoV_x / voxel.notinterpfov_x) - ...
-%        voxel.step_x * voxel.size_x) < abs(voxel.fov_cntr_x + voxel.p_fov_x / 2)
-%                SNR.w_coor(ooo,1) = i + (voxel.number_x / 2 - voxel.step_x) - 1;
-%            else
-                SNR.w_coor(ooo,1) = i + (voxel.number_x / 2 - voxel.step_x);
-%            end
-%            if abs(voxel.fov_cntr_y + round(CSI_shft_ud * voxel.FoV_y / voxel.notinterpfov_y) - ...
-%        voxel.step_y * voxel.size_y) > abs(voxel.fov_cntr_y - voxel.p_fov_y / 2)
-%                SNR.w_coor(ooo,2) = j + (voxel.number_y / 2 - voxel.step_y) + 1;
-%            elseif abs(voxel.fov_cntr_y + round(CSI_shft_ud * voxel.FoV_y / voxel.notinterpfov_y) - ...
-%        voxel.step_y * voxel.size_y) < abs(voxel.fov_cntr_y + voxel.p_fov_y / 2)
-%                SNR.w_coor(ooo,2) = j + (voxel.number_y / 2 - voxel.step_y) - 1;
-%            else
-                SNR.w_coor(ooo,2) = j + (voxel.number_y / 2 - voxel.step_y);
-%            end
+            SNR.w_coor(ooo,1) = i + (voxel.number_x / 2 - voxel.step_x);
+            SNR.w_coor(ooo,2) = j + (voxel.number_y / 2 - voxel.step_y);
             SNR.w_coor(ooo,3) = k + (voxel.number_z / 2 - voxel.step_z);
             SNR.w_coor(ooo,4) = SNR.reshaped(1,ooo);
         end
