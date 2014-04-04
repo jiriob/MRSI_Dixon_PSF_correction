@@ -1,20 +1,22 @@
 % minarikova.lenka@gmail.com
-% v 1.1
+% v 1.2
 
 function [] = SNR_lenk(directory, cho_ppm, bdwtd, trnct, control) %, CSI_shft_ud, CSI_shft_lr)
 
 % !!!!!!!!!!!!!!!!!! readme !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 % for working you need my other function called read_ascconv_lenk.m
 %   for reading parameters from the dicom
-% directory = '~/Patient_name' - where is a directory called "Spec" with
-%   a dicom 3D CSI file
+% directory = '~/Patient_name' - where a directory called "Spec" has to be 
+% with a dicom 3D CSI file
+
 % cho_ppm = 3.2 - exact position of Choline peak if the spectrum is set
 %   to begin at 8.76 ppm and ends at 0.64, with 1000 Hz bandwidth
-% bdwtd = 50 - bandwidth of the peak
-% trnct = number of points to truncate at the end of FID
+% bdwtd = 50 - width of the peak in Hz, with 1000 Hz bandwidth
+% trnct = number of points to truncate at the end of the FID
 % control = 1 - at first you need to control if the baseline correction
 %   is working properly and everything is set all right
-% shft_ud: for shifted CSI: up -0.% down +0.%
+% shft_ud: for shifted CSI: up -0.% down +0.% - "%" means percentage of
+%   the shift
 % shft_lr: for shifted CSI: left -0.% right +0.%
 
 % the output is maximal, mean value of all SNRs of Cho and a table
@@ -195,7 +197,9 @@ for z = bbox.slc_start:bbox.slc_end
             X = real(fftshift(X));
             
             SNR.vynimka = 1;
-            if abs(X(l_sd) - X(r_sd)) > 15 % filter big difference in the baseline
+            if abs(X(l_sd) - X(r_sd)) > 500 % filter big difference in the baseline
+                % for WS and FS the difference should be ~ 15
+                % for non WS and non FS set it bigger (500)
                 SNR.vynimka = 0;
             end
             
@@ -204,13 +208,13 @@ for z = bbox.slc_start:bbox.slc_end
                 disp(SNR.main);
                 X = bf(X,[16,32,50,80,110,140,170,200,230,260,290,320,350,...
                     r_sd - 30,r_sd - 15,r_sd - 10,r_sd - 5,r_sd - 2,r_sd,...
-                    l_sd,l_sd - 2,l_sd + 5,l_sd + 10,l_sd + 15,l_sd + 30,970],7,'cubic','confirm');
+                    l_sd,l_sd - 2,l_sd + 5,l_sd + 10,l_sd + 15,l_sd + 30,970],7,'linear','confirm');
                 plot(F,X);
                 set(gca,'XDir','reverse');
             else
                 X = bf(X,[16,32,50,80,110,140,170,200,230,260,290,320,350,...
                     r_sd - 30,r_sd - 15,r_sd - 10,r_sd - 5,r_sd - 2,r_sd,...
-                    l_sd,l_sd - 2,l_sd + 5,l_sd + 10,l_sd + 15,l_sd + 30,970],7,'cubic');
+                    l_sd,l_sd - 2,l_sd + 5,l_sd + 10,l_sd + 15,l_sd + 30,970],7,'linear');
             end
 
             % ppm scale + values from X
@@ -236,8 +240,8 @@ for z = bbox.slc_start:bbox.slc_end
 %                         snr.base(w) = real(snr.schleife(:,3));
 %                     end
 %                 end
-                if ppm_wert < snr.cho + 0.3
-                    if ppm_wert >snr.cho - 0.3
+                if ppm_wert < snr.cho + 0.2
+                    if ppm_wert > snr.cho - 0.2
                         zz = zz + 1;
                         snr.max(zz) = real(snr.schleife(:,3));
                     end
