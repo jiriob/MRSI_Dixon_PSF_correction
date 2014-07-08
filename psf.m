@@ -1,6 +1,13 @@
 
 function [] = psf_real(directory, field, jmr, shft_ud, shft_lr, SNR_filter, rvsb)
 % minarikova.lenka@gmail.com
+% directory = '/Users/zgung/Desktop/HA/';
+% field = 3;
+% jmr = 0;
+% shft_ud = 0;
+% shft_lr = 0;
+% SNR_filter = 0.2;
+% rvsb = 1;
 
 faktr = 1;
 % !!!!!!!!!!!!!!!!!! readme !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -92,7 +99,7 @@ if field == 3 % anyway we are not measuring dixons on 7 T
 end
 %% move to dixom folder: water first
 disp('Processing PSF');
-cd(strcat(directory,'Dixon_1.0iso_PAT2_v2_W/'));
+cd(strcat(directory,'Dixon_W/'));
 slices = dir(pwd);
 for k = length(slices):-1:1
     fname = slices(k).name;
@@ -141,7 +148,7 @@ for ii = 1:n
     imgs{1,1}(:,:,ii) = double(dicomread(slices(ii).name));
 end
 %% %%%%% move to dixom folder: fat, import fat images %%%%%%
-cd(strcat(directory,'Dixon_1.0iso_PAT2_v2_F/'));
+cd(strcat(directory,'Dixon_F/'));
 slices = dir(pwd);
 for k = length(slices):-1:1
     fname = slices(k).name;
@@ -634,8 +641,8 @@ end
 %% hamming filter first:
  %generate 1D filter with CSI matrix resolution:
  w1 = hamming(11);
- [x,y,z] = meshgrid(-5:1:5);
- r = sqrt(x.^2 + y.^2 + z.^2);
+ [x,y,z] = meshgrid(-5:1:5); 
+ r = sqrt(x.^2 + y.^2 + z.^2); % the question is, is siemens implementing it in this spherical fasion
  w = zeros(size(r));
  w(r<=5) = interp1(linspace(-5,5,11),w1,r(r<=5));
  %imagesc(w(:,:,6));
@@ -648,7 +655,7 @@ end
 %% zero filling to 16x16x16
 sgmnts{7,1} = padarray(sgmnts{6,1},[2 2 2]);
 % final map:
-sgmnts{8,1} = abs(fftshift(ifftn(ifftshift(sgmnts{8,1}))));
+sgmnts{8,1} = abs(fftshift(ifftn(ifftshift(sgmnts{7,1}))));
 % half-voxel shift because of stupid fourier transform not working
 % properly,)
 sgmnts{9,1} = FourierShift3D(sgmnts{8,1},[-0.5 -0.5 -0.5]);
