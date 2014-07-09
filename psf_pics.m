@@ -2,6 +2,12 @@
 
 function [signal3D] = psf_pics(directory, no_cor, fctr, CSI_shft_ud, CSI_shft_lr)
 
+% directory = '/Users/zgung/Desktop/HA/';
+% no_cor = 0;
+% fctr = 2;
+% CSI_shft_ud = 0;
+% CSI_shft_lr = 0;
+
 % !!!!!!!!!!!!!!!!!! readme !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 % for working you need my other function called read_ascconv_lenk.m
 %   for reading parameters from the dicom
@@ -62,6 +68,7 @@ slices = cell2struct(Acell, Afields, 1);
 %voxel = read_ascconv_lenk(slices(1).name); % read parrameter from spectroscopy dicom
 nfo1 = dicominfo(slices(1).name);
 %[signal3D,sgmnts,voxel] = psf(slices(1).name);
+%%
 
 %load(strcat(nfo1.PatientName.FamilyName,'_sgmnts_w.mat')); % load the segmented water data
 load(strcat(nfo1.PatientName.FamilyName,'_voxel.mat'));
@@ -69,7 +76,7 @@ load(strcat(nfo1.PatientName.FamilyName,'_density.mat'));
 load(strcat(nfo1.PatientName.FamilyName,'_imgs_w.mat'));
 load(strcat(nfo1.PatientName.FamilyName,'_density_wt_cor'));
 load(strcat(nfo1.PatientName.FamilyName,'_rtio'));
-
+%%
 c.cut_width = round(2 * voxel.step_y * voxel.size_y); % width in pixels of the cuted image
 c.cut_height = round(2 * voxel.step_x * voxel.size_x); % height -||-
 c.cut_depth = round(2 * voxel.step_z * voxel.size_z); % depth -||-
@@ -82,36 +89,16 @@ if no_cor == 1
 elseif no_cor == 2
     density = rtio;
 end
-
-% upsample choline signal information without interpolating
-%fctr = 2;
+%%
 f_nas = fctr * voxel.size_x;
-B = density;
-A = cell(f_nas,1);
-for i = 0:f_nas - 1
-    A{i + 1} = upsample(B,f_nas,i);
-end
-B = sum(cat(f_nas,A{:}),f_nas);
-B = permute(B,[3 2 1]);
-for i = 0:f_nas - 1
-    A{i + 1} = upsample(B,f_nas,i);
-end
-B = sum(cat(f_nas,A{:}),f_nas);
-B = permute(B,[2 1 3]);
-for i = 0:f_nas - 1
-    A{i + 1} = upsample(B,f_nas,i);
-end
-B = sum(cat(f_nas,A{:}),f_nas);
-B = permute(B,[3 1 2]);
-% B = downsample(B,4);
-% B = permute(B,[3 2 1]);
-% B = downsample(B,4);
-% B = permute(B,[2 1 3]);
-% B = downsample(B,4);
-% B = permute(B,[3 1 2]);
-signal3D_ = B;
-clear B;
-%% interpolate images so they have 4 times bigger resolution
+c.density = size(density);
+[XI,YI,ZI] = meshgrid(1:(c.density(2) - 0.99) / (c.density(2) * f_nas):c.density(2),...
+    1:(c.density(1) - 0.99) / (c.density(1) * f_nas):c.density(1),...
+    1:(c.density(3) - 0.99) / (c.density(3) * f_nas):c.density(3));
+%%
+signal3D_ = ba_interp3(density,XI,YI,ZI,'linear');
+clear XI; clear YI; clear ZI;
+%% interpolate images so they have "fctr" times bigger resolution
 c.img_s = size(imgs_w);
 [XI,YI,ZI] = meshgrid(1:(c.img_s(2) - 0.9) / (c.img_s(2) * fctr):c.img_s(2),...
     1:(c.img_s(1) - 0.9) / (c.img_s(1) * fctr):c.img_s(1),...
@@ -122,6 +109,7 @@ clear XI; clear YI; clear ZI;
 % than find a maximal value of background and signal images:
 h = max(max(max(imgs_w)));
 g_test = max(max(max(signal3D_)));
+%%
 if g_test < 10
     g = max(max(max(signal3D_))) * 100; % amplified signal values
 else
@@ -145,20 +133,18 @@ for aa = 1:c.pix_depth
     subimage(imgs_w(:,:,fix((aa) * (c.cut_depth * fctr) / (c.pix_depth + 1)) + 5),cmp1);
     pic = signal3D_(:,:,fix((aa) * (c.cut_depth * fctr) / (c.pix_depth + 1)) - 0);
     hold on
-    if g_test < 10
-        hh2 = image((voxel.fov_x1 - 3) * fctr,(voxel.fov_y1 - 3) * fctr,pic .* 100,...
-            'AlphaDataMapping','scaled',...
-            'AlphaData',gradient(pic));
-    else
-        hh2 = image((voxel.fov_x1 - 3) * fctr,(voxel.fov_y1 - 3) * fctr,pic,...
-            'AlphaDataMapping','scaled',...
-            'AlphaData',gradient(pic));
-    end
-
-%        'AlphaData',gradient(pic),...
-%        'AlphaDataMapping','scaled',...
-%        'AlphaData',(abs(pic) * 100),...
-
+    pic_norm = pic/max(max(pic));
+%     if g_test < 10
+%         hh2 = image((voxel.fov_x1 - 3) * fctr,(voxel.fov_y1 - 3) * fctr,pic .* 100,...
+%             'AlphaDataMapping','scaled',...
+%             'AlphaData',gradient(pic));
+%     else
+        hh2 = image((voxel.fov_x1 - 3) * fctr,(voxel.fov_y1 - 3) * fctr,pic); %,...
+%            'AlphaDataMapping','scaled',...
+%            'AlphaData',pic/15);
+%     end
+    
+    set( hh2, 'AlphaData', .3);
     colormap(jet2);
     axis([100 800 100 800]);
     %axis([0 length(imgs_w{1,1}) 0 numel(imgs_w{1,1}(:,1))]);
