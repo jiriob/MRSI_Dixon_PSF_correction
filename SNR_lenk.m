@@ -13,8 +13,9 @@ function [] = SNR_lenk(directory, cho_ppm, bdwtd, trnct, control) %, CSI_shft_ud
 %   to begin at 8.76 ppm and ends at 0.64, with 1000 Hz bandwidth
 % bdwtd = 50 - width of the peak in Hz, with 1000 Hz bandwidth
 % trnct = number of points to truncate at the end of the FID
-% control = 1 - at first you need to control if the baseline correction
-%   is working properly and everything is set all right
+% control = the number of slice with highest Cho - at first you need to 
+%   control if the baseline correction is working properly and everything 
+%   is set all right, or 0 if you are sure about the Cho settings
 % shft_ud: for shifted CSI: up -0.% down +0.% - "%" means percentage of
 %   the shift
 % shft_lr: for shifted CSI: left -0.% right +0.%
@@ -172,7 +173,12 @@ SNR.main = 0;
 lala = 0;
 %% PRESSbox Daten FFT und in Txt File schreiben
 
+
+
 for z = bbox.slc_start:bbox.slc_end
+    if control ~= 0
+        z = control;
+    end
     b = 0;
     c = c + 1;
     for y = bbox.col_start:bbox.col_end
@@ -204,17 +210,17 @@ for z = bbox.slc_start:bbox.slc_end
             end
             
             % Baseline FIT !!!!!!
-            if control == 1
+            if control == 0
+                X = bf(X,[16,32,50,80,110,140,170,200,230,260,290,320,350,...
+                    r_sd - 30,r_sd - 15,r_sd - 10,r_sd - 5,r_sd - 2,r_sd,...
+                    l_sd,l_sd - 2,l_sd + 5,l_sd + 10,l_sd + 15,l_sd + 30,970],7,'linear');
+            else
                 disp(SNR.main);
                 X = bf(X,[16,32,50,80,110,140,170,200,230,260,290,320,350,...
                     r_sd - 30,r_sd - 15,r_sd - 10,r_sd - 5,r_sd - 2,r_sd,...
                     l_sd,l_sd - 2,l_sd + 5,l_sd + 10,l_sd + 15,l_sd + 30,970],7,'linear','confirm');
                 plot(F,X);
                 set(gca,'XDir','reverse');
-            else
-                X = bf(X,[16,32,50,80,110,140,170,200,230,260,290,320,350,...
-                    r_sd - 30,r_sd - 15,r_sd - 10,r_sd - 5,r_sd - 2,r_sd,...
-                    l_sd,l_sd - 2,l_sd + 5,l_sd + 10,l_sd + 15,l_sd + 30,970],7,'linear');
             end
 
             % ppm scale + values from X
@@ -280,6 +286,9 @@ for z = bbox.slc_start:bbox.slc_end
             SNR.reshaped(lala) = SNR.main;
         end
     end
+    if control ~= 0
+        break
+    end
 end
 
 %% treshold for all values:
@@ -289,43 +298,48 @@ end
 %    end
 %end
 %reshape and add coordinates as are in siemens:
-c.pix_width = voxel.step_y * 2; % number of voxels in the pressbox - x axis
-c.pix_height = voxel.step_x * 2; % -||- - y axis
-c.pix_depth = voxel.step_z * 2; % -||- - z axis
-ooo = 0;
-for k = 1:c.pix_depth
-    for j = 1:c.pix_width
-        for i = 1:c.pix_height
-            ooo = ooo + 1;
-            SNR.w_coor(ooo,1) = i + (voxel.number_x / 2 - voxel.step_x);
-            SNR.w_coor(ooo,2) = j + (voxel.number_y / 2 - voxel.step_y);
-            SNR.w_coor(ooo,3) = k + (voxel.number_z / 2 - voxel.step_z);
-            SNR.w_coor(ooo,4) = SNR.reshaped(1,ooo);
+
+if control ~= 0
+    disp('You were just checking the peak frequency and bandwidth, rerun with control = 0 and the right parameters')
+else
+    c.pix_width = voxel.step_y * 2; % number of voxels in the pressbox - x axis
+    c.pix_height = voxel.step_x * 2; % -||- - y axis
+    c.pix_depth = voxel.step_z * 2; % -||- - z axis
+    ooo = 0;
+    for k = 1:c.pix_depth
+        for j = 1:c.pix_width
+            for i = 1:c.pix_height
+                ooo = ooo + 1;
+                SNR.w_coor(ooo,1) = i + (voxel.number_x / 2 - voxel.step_x);
+                SNR.w_coor(ooo,2) = j + (voxel.number_y / 2 - voxel.step_y);
+                SNR.w_coor(ooo,3) = k + (voxel.number_z / 2 - voxel.step_z);
+                SNR.w_coor(ooo,4) = SNR.reshaped(1,ooo);
+            end
         end
     end
-end
-
-%% saving important things:
-path = sprintf('Output_choSNR.txt');
-fid_write = fopen(path,'w');
-fprintf(fid_write,'%d\n',SNR.reshaped);
-fclose(fid_write);
-
+    
+    %% saving important things:
+    path = sprintf('Output_choSNR.txt');
+    fid_write = fopen(path,'w');
+    fprintf(fid_write,'%d\n',SNR.reshaped);
+    fclose(fid_write);
+    
     pvc_mean = mean(SNR.reshaped);
     path = sprintf('Output_cho_mean.txt');
     fid_write = fopen(path,'w');
     fprintf(fid_write,'%d\n',pvc_mean);
     fclose(fid_write);
     disp(pvc_mean);
-
+    
     pvc_max = max(SNR.reshaped);
     path = sprintf('Output_cho_max.txt');
     fid_write = fopen(path,'w');
     fprintf(fid_write,'%d\n',pvc_max);
     fclose(fid_write);
     disp(pvc_max);
-
-dlmwrite('Output_choSNR_w_coor.txt', SNR.w_coor, 'delimiter', '\t', ...
-         'precision', 6);
-
+    
+    dlmwrite('Output_choSNR_w_coor.txt', SNR.w_coor, 'delimiter', '\t', ...
+             'precision', 6);
+end
+    
 toc
