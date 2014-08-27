@@ -98,7 +98,7 @@ if field == 3 % anyway we are not measuring dixons on 7 T
     end
 end
 %% move to dixom folder: water first
-disp('Processing PSF');
+disp('Importing Dixon images');
 cd(strcat(directory,'Dixon_W/'));
 slices = dir(pwd);
 for k = length(slices):-1:1
@@ -107,21 +107,6 @@ for k = length(slices):-1:1
         slices(k) = [];
     end
 end
-%% check if the slices are in a good order
-Afields = fieldnames(slices);
-Acell = struct2cell(slices);
-sz = size(Acell);
-% Convert to a matrix
-Acell = reshape(Acell, sz(1), []);      % Px(MxN)
-% Make each field a column
-Acell = Acell';                       % (MxN)xP
-for k = 1:length(slices)
-    [~,~,~,~,slc_n,~,~,~,~,~,~,~,~,~] = strread(slices(k,1).name,'%s %s %s %d %d %d %d %d %d %d %d %d %d %s','delimiter','.');
-    Acell{k,4}= slc_n;
-end
-Acell = sortrows(Acell, 4); % Sort by first field "name"
-Acell = reshape(Acell', sz); % Put back into original cell array format
-slices = cell2struct(Acell, Afields, 1); % Convert to Struct
 %% determine CSI-in-press parameters:
 voxel.size_z = voxel.FoV_z / voxel.number_z; % the size of 1 voxel after zero filling in mm
 voxel.size_y = voxel.FoV_y / voxel.number_y;
@@ -141,12 +126,23 @@ else
     voxel.step_z = voxel.number_z / 2 - fix((voxel.FoV_z - voxel.p_fov_z) / 2 / voxel.size_z);
 end
 nfo1 = dicominfo(slices(1).name);
+%% Check if the direction of images is Tra
+if nfo1.ImageOrientationPatient == [1;0;0;0;1;0]
+    % do nothing everything is all right
+    disp(strcat('Great, you gave me transversal images <3'));
+else
+    error('Please give me trasversal MRI images!');
+    % this script can work only with MRI Dixon images in transversal
+    % orientation
+end
 % %%%%%%%%%%%%%%%%%%%%%%% Import the W images %%%%%%%%%%%%%%%%%%%%%%%%%
 n = numel(slices);
 imgs = cell(1,1);
 for ii = 1:n
-    imgs{1,1}(:,:,ii) = double(dicomread(slices(ii).name));
+    img_(:,:,ii) = double(dicomread(slices(ii).name));
 end
+imgs{1,1} = img_;
+clear img_;
 %% %%%%% move to dixom folder: fat, import fat images %%%%%%
 cd(strcat(directory,'Dixon_F/'));
 slices = dir(pwd);
@@ -156,26 +152,13 @@ for k = length(slices):-1:1
         slices(k) = [];
     end
 end
-%% check if the slices are in a good order
-Afields = fieldnames(slices);
-Acell = struct2cell(slices);
-sz = size(Acell);
-% Convert to a matrix
-Acell = reshape(Acell, sz(1), []);      % Px(MxN)
-% Make each field a column
-Acell = Acell';                       % (MxN)xP
-for k = 1:length(slices)
-    [~,~,~,~,slc_n,~,~,~,~,~,~,~,~,~] = strread(slices(k,1).name,'%s %s %s %d %d %d %d %d %d %d %d %d %d %s','delimiter','.');
-    Acell{k,4}= slc_n;
-end
-Acell = sortrows(Acell, 4); % Sort by first field "name"
-Acell = reshape(Acell', sz); % Put back into original cell array format
-slices = cell2struct(Acell, Afields, 1); % Convert to Struct
-
+% read fat images:
 n = numel(slices);
 for ii = 1:n
-    imgs{1,2}(:,:,ii) = double(dicomread(slices(ii).name));
+    img_(:,:,ii) = double(dicomread(slices(ii).name));
 end
+imgs{1,2} = img_;
+clear img_;
 %% %%%%%%%%%%%%%%% IMAGE processing: interpolate so 1 mm ~ 1 image voxel
     [XI,YI,ZI] = meshgrid(1:(floor(10000 * 1 / nfo1.PixelSpacing(1,1)) / 10000):length(imgs{1,1}(1,:,1)),...
         1:(floor(10000 * 1 / nfo1.PixelSpacing(2,1)) / 10000):length(imgs{1,1}(:,1,1)),...
@@ -283,12 +266,12 @@ disp('Segmenting...');
 %% segmentation alone
 data = threed(:,1:2);
 %% how to distinquish water cluster from noise and fat using 2d histogram
-[hist,biny] = hist3(data,[128,128]);
-biny_a(:,1) = biny{1,1};
-biny_a(:,2) = biny{1,2};
-clear biny;
-iii = 100;
-figure(1); %plot histogram
+matrix_hist = [64,64];
+[hist,biny] = hist3(data,matrix_hist);
+%iii = 100;
+max_hist = max(max(hist));
+scrsz = get(0,'ScreenSize');
+figure('Position',[1 scrsz(4)/1.25 scrsz(3)/1.25 scrsz(4)/1.25]); %plot histogram
 %hist3(data,[64,64]);
 %xlabel('MPG'); ylabel('Weight');
 %set(gcf,'renderer','opengl');
@@ -297,35 +280,85 @@ figure(1); %plot histogram
 %caxis([0 200]);
 subplot(221);
 imagesc(hist);
-caxis([0 100]);
+title('Original histogram');
+caxis([0 .05*max_hist]);
 % filter noise in the histogram
-noiseFilter = imhmin(hist,0.5);
+noiseFilter = medfilt2(hist,[3 3]);
 %# Gaussian-filter the image:
-gaussFilter = fspecial('gaussian',[128 128],1);  %# Create the filter
+gaussFilter = fspecial('gaussian',matrix_hist,1);  %# Create the filter
 filteredData = imfilter(noiseFilter,gaussFilter);
 subplot(222);
 imagesc(filteredData);
-title('Gaussian-filtered image');
-caxis([0 100]);
-% # Perform a morphological close operation:
-closeElement = strel('disk',10);  %# Create a disk-shaped structuring element
-closedData = imclose(filteredData,closeElement);
+title('Gaussian-filtered histo');
+caxis([0 .05*max_hist]);
+% # Perform a morphological close operation (basically smoothing):
+def_n = 2; % default filter strenght is '2'
+closeElement = strel('disk',def_n);  %# Create a disk-shaped structuring element
+closedData = imclose(filteredData,closeElement); % close the gaps
+%closedData = filteredData;
 subplot(223);
 imagesc(closedData);
 title('Closed image');
-caxis([0 100]);
+caxis([0 .05*max_hist]);
 % find centers
 mxma = imregionalmax(closedData);
 subplot(224);
-imagesc(mxma);
+imagesc(mxma);colormap('cool');
+title('Maxima found (there should be 3 closed maxima:for noise, water and fat)');
+colormap('cool');
+%%
+% Construct a quest dialog with two options ('no' is default)
+rslt = 0;
+def{1,1} = num2str(def_n);
+while rslt ~= 1;
+    choice = questdlg('Are there only 3 (or 2) objects on the last image? (One for water cluster, one for fat and one for noise in the left upper corner)', ...
+        'Choose an answer', ...
+        'Yes','No','No');
+    % Handle response
+    switch choice
+        case 'Yes'
+            msgbox('Great!') % clear the variables
+            rslt = 1;
+        case 'No'
+            prompt = {'Try to increase filter strength:'};
+            dlg_title = 'No?';
+            num_lines = 1;
+            %def = {'2'};
+            answer_ = inputdlg(prompt,dlg_title,num_lines,def);
+            ans_ = str2double(answer_);
+            closeElement = strel('disk',ans_);  % repeat last filtering
+            closedData = imclose(filteredData,closeElement); % close more gaps
+            subplot(223);
+            imagesc(closedData);
+            title('Closed image');
+            caxis([0 .05*max_hist]);
+            mxma = imregionalmax(closedData);
+            subplot(224);
+            imagesc(mxma);
+            title('Maxima found (there should be 3 closed maxima:for noise, water and fat)');
+            
+            def = answer_;
+            clear answer_ ans_;
+            rslt = 0;
+    end
+end
+clear rslt;
+%%
+clear n;
 [X,Y] = find(mxma==max(mxma(:)));
 % assign bins to the max points
 [w.X,w.ind] = max(X);
+%
 w.Y = Y(w.ind);
 [f.Y,f.ind] = max(Y);
 f.X = X(f.ind);
 n.X = 5; n.Y = 5;
 
+biny_a(:,1) = biny{1,1};
+biny_a(:,2) = biny{1,2};
+%% clear some space
+clear scrsz matrix_hist hist noiseFilter gaussFilter;
+clear closeElement closedData def def_n biny;
 %% %%%%%%%%%%%%%%%%%%%%%%%%# find the "minimum" between the water and fat
 syms a k
 [sol_a, sol_k] = solve(k * w.X + a == w.Y, k * f.X + a == f.Y);
